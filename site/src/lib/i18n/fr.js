@@ -37,7 +37,7 @@ export default {
   "wallet.connectThenRetry": "Connectez votre wallet, puis réessayez.",
   "footer.tagline": "gratuit · preuve de travail · sans royalties · MIT",
   "footer.contract": "contrat {address}",
-  "footer.source": "code source",
+  "footer.source": "GitHub",
   "footer.whitepaper": "livre blanc",
   "common.loading": "Chargement…",
   "common.cannotRead": "Impossible de lire le contrat : {error}",

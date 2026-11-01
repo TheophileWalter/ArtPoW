@@ -40,7 +40,7 @@ export default {
   "wallet.connectThenRetry": "Connect your wallet, then try again.",
   "footer.tagline": "free · proof of work · no royalties · MIT",
   "footer.contract": "contract {address}",
-  "footer.source": "source code",
+  "footer.source": "GitHub",
   "footer.whitepaper": "whitepaper",
   "common.loading": "Loading…",
   "common.cannotRead": "Cannot read the contract: {error}",

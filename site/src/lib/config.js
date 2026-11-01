@@ -22,8 +22,8 @@ export const walletConnectProjectId = read("VITE_WALLETCONNECT_PROJECT_ID");
 export const ipfsGateway = read("VITE_IPFS_GATEWAY", "https://ipfs.io/ipfs/");
 export const arweaveGateway = read("VITE_ARWEAVE_GATEWAY", "https://arweave.net/");
 export const explorer = chain.blockExplorers?.default?.url ?? "";
-/** Public repository of the project, linked from the footer (optional). */
-export const sourceUrl = read("VITE_SOURCE_URL");
+/** Public repository of the project, linked from the footer. */
+export const sourceUrl = read("VITE_SOURCE_URL", "https://github.com/TheophileWalter/ArtPoW");
 
 /** Miners aim at the target the contract would have after this many more claims (≈ 7% harder each). */
 export const MINING_MARGIN_CLAIMS = 2;

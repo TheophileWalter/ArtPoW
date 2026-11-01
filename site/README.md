@@ -42,7 +42,7 @@ Copy `.env.example` to `.env`:
   With it, the connection modal offers mobile wallets through a QR code as well as browser wallets; without it,
   only browser wallets (MetaMask, Rabby…) are available;
 - `VITE_IPFS_GATEWAY`, `VITE_ARWEAVE_GATEWAY`: gateways used to display `ipfs://` and `ar://` images;
-- `VITE_SOURCE_URL` (optional): public repository, linked from the footer.
+- `VITE_SOURCE_URL`: public repository, linked from the footer (default: https://github.com/TheophileWalter/ArtPoW).
 
 ## Build
 
