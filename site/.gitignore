@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+src/lib/abi.json
+src/lib/bytecode.json
+public/whitepaper.pdf

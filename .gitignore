@@ -1,0 +1,29 @@
+# Compiler files
+cache/
+out/
+
+# Commonly ignored directories
+.logs/
+.ignore/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Dotenv file
+.env
+.env.*
+!.env.example
+miner/node_modules/
+sim/__pycache__/
+
+# LaTeX build files
+docs/whitepaper/*.aux
+docs/whitepaper/*.log
+docs/whitepaper/*.out
+docs/whitepaper/*.fls
+docs/whitepaper/*.fdb_latexmk
+
+# Personal notes
+todo.md

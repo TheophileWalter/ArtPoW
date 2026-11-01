@@ -1,0 +1,118 @@
+// Generates src/keccak-wasm.js: a WebAssembly Keccak-f[1600] search loop, embedded as base64.
+// Run: npm run build:wasm
+//
+// Memory layout:
+//   [0, 200)    initial state: the padded single-block message (25 lanes, little-endian), counter lane zeroed
+//   [256, 448)  the 24 round constants
+//   [512, 544)  first 4 lanes of the last candidate hash
+// search(start, count, targetTop) tests counters start..start+count-1, XORed into lane 15, and returns the
+// index of the first candidate whose big-endian top 64 bits are <= targetTop, or -1. The caller checks the
+// full 256-bit comparison (only needed when the top 64 bits are equal).
+
+import { writeFileSync } from "node:fs";
+import wabtInit from "wabt";
+
+const RC = [
+  0x0000000000000001n, 0x0000000000008082n, 0x800000000000808an, 0x8000000080008000n,
+  0x000000000000808bn, 0x0000000080000001n, 0x8000000080008081n, 0x8000000000008009n,
+  0x000000000000008an, 0x0000000000000088n, 0x0000000080008009n, 0x000000008000000an,
+  0x000000008000808bn, 0x800000000000008bn, 0x8000000000008089n, 0x8000000000008003n,
+  0x8000000000008002n, 0x8000000000000080n, 0x000000000000800an, 0x800000008000000an,
+  0x8000000080008081n, 0x8000000000008080n, 0x0000000080000001n, 0x8000000080008008n,
+];
+// ROT[x][y]
+const ROT = [
+  [0, 36, 3, 41, 18],
+  [1, 44, 10, 45, 2],
+  [62, 6, 43, 15, 61],
+  [28, 55, 25, 21, 56],
+  [27, 20, 39, 8, 14],
+];
+
+const get = (v) => `(local.get $${v})`;
+const set = (v, e) => `(local.set $${v} ${e})`;
+const xor = (...e) => e.reduce((a, b) => `(i64.xor ${a} ${b})`);
+const rotl = (e, n) => (n === 0 ? e : `(i64.rotl ${e} (i64.const ${n}))`);
+
+function round() {
+  const out = [];
+  for (let x = 0; x < 5; x++) out.push(set(`c${x}`, xor(...[0, 5, 10, 15, 20].map((o) => get(`a${x + o}`)))));
+  for (let x = 0; x < 5; x++) {
+    out.push(set(`d${x}`, xor(get(`c${(x + 4) % 5}`), rotl(get(`c${(x + 1) % 5}`), 1))));
+  }
+  for (let i = 0; i < 25; i++) out.push(set(`a${i}`, xor(get(`a${i}`), get(`d${i % 5}`))));
+  // rho + pi
+  for (let x = 0; x < 5; x++) {
+    for (let y = 0; y < 5; y++) {
+      out.push(set(`b${y + 5 * ((2 * x + 3 * y) % 5)}`, rotl(get(`a${x + 5 * y}`), ROT[x][y])));
+    }
+  }
+  // chi
+  for (let y = 0; y < 5; y++) {
+    for (let x = 0; x < 5; x++) {
+      const b1 = get(`b${((x + 1) % 5) + 5 * y}`);
+      const b2 = get(`b${((x + 2) % 5) + 5 * y}`);
+      out.push(set(`a${x + 5 * y}`, xor(get(`b${x + 5 * y}`), `(i64.and (i64.xor ${b1} (i64.const -1)) ${b2})`)));
+    }
+  }
+  // iota
+  out.push(set("a0", xor(get("a0"), "(i64.load offset=256 (i32.shl (local.get $r) (i32.const 3)))")));
+  return out.join("\n        ");
+}
+
+// Big-endian value of the first 8 hash bytes = byte swap of lane 0.
+function bswap(e) {
+  const parts = [];
+  for (let i = 0; i < 8; i++) {
+    const byte = `(i64.and (i64.shr_u ${e} (i64.const ${8 * i})) (i64.const 255))`;
+    parts.push(`(i64.shl ${byte} (i64.const ${56 - 8 * i}))`);
+  }
+  return parts.reduce((a, b) => `(i64.or ${a} ${b})`);
+}
+
+const lanes = (p) => Array.from({ length: 25 }, (_, i) => `(local $${p}${i} i64)`).join(" ");
+const wat = `(module
+  (memory (export "memory") 1)
+  (data (i32.const 256) "${RC.map((c) => {
+    let s = "";
+    for (let i = 0; i < 8; i++) s += "\\" + Number((c >> BigInt(8 * i)) & 0xffn).toString(16).padStart(2, "0");
+    return s;
+  }).join("")}")
+  (func (export "search") (param $start i64) (param $count i32) (param $ttop i64) (result i32)
+    (local $i i32) (local $r i32)
+    ${lanes("a")}
+    ${lanes("b")}
+    (local $c0 i64) (local $c1 i64) (local $c2 i64) (local $c3 i64) (local $c4 i64)
+    (local $d0 i64) (local $d1 i64) (local $d2 i64) (local $d3 i64) (local $d4 i64)
+    (block $done
+      (loop $next
+        (br_if $done (i32.ge_u (local.get $i) (local.get $count)))
+        ${Array.from({ length: 25 }, (_, i) => set(`a${i}`, `(i64.load offset=${8 * i} (i32.const 0))`)).join("\n        ")}
+        ${set("a15", xor(get("a15"), "(i64.add (local.get $start) (i64.extend_i32_u (local.get $i)))"))}
+        (local.set $r (i32.const 0))
+        (loop $round
+        ${round()}
+        (local.set $r (i32.add (local.get $r) (i32.const 1)))
+        (br_if $round (i32.lt_u (local.get $r) (i32.const 24))))
+        (if (i64.le_u ${bswap(get("a0"))} (local.get $ttop))
+          (then
+            (i64.store offset=512 (i32.const 0) (local.get $a0))
+            (i64.store offset=520 (i32.const 0) (local.get $a1))
+            (i64.store offset=528 (i32.const 0) (local.get $a2))
+            (i64.store offset=536 (i32.const 0) (local.get $a3))
+            (return (local.get $i))))
+        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+        (br $next)))
+    (i32.const -1)))
+`;
+
+const wabt = await wabtInit();
+const mod = wabt.parseWat("keccak.wat", wat);
+mod.validate();
+const { buffer } = mod.toBinary({});
+const b64 = Buffer.from(buffer).toString("base64");
+writeFileSync(
+  new URL("../src/keccak-wasm.js", import.meta.url),
+  `// Generated by scripts/build-wasm.js - do not edit.\nexport const KECCAK_WASM_BASE64 =\n  "${b64}";\n`,
+);
+console.log(`keccak wasm: ${buffer.length} bytes`);

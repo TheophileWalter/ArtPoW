@@ -1,0 +1,35 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.30"
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+fs_permissions = [{ access = "read", path = "./sim" }]
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "forge-std/=lib/forge-std/src/",
+]
+
+[rpc_endpoints]
+polygon = "${POLYGON_RPC_URL}"
+amoy = "${AMOY_RPC_URL}"
+
+# Etherscan API V2: one key covers Polygonscan (mainnet and Amoy).
+[etherscan]
+polygon = { key = "${ETHERSCAN_API_KEY}", chain = 137 }
+amoy = { key = "${ETHERSCAN_API_KEY}", chain = 80002 }
+
+[lint]
+# The month calendar and the difficulty schedule rely on block.timestamp by design. Validators can only shift it by
+# a few seconds, which moves the schedule by a negligible fraction of a token. See docs/static-analysis.md.
+exclude_lints = ["block-timestamp"]
+
+[fuzz]
+runs = 512
+
+[invariant]
+runs = 64
+depth = 150
+fail_on_revert = true

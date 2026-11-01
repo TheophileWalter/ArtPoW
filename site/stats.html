@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="theme-color" content="#07080c" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="A free NFT every month, earned by proof of work." />
+    <title>Statistics · ArtPoW</title>
+    <script>
+      // Applies the theme before the first paint: the visitor's choice, else the system preference.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") t = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <main id="app"><p class="muted">Loading…</p></main>
+    <script type="module" src="./src/pages/stats.js"></script>
+  </body>
+</html>
