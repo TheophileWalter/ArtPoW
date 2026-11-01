@@ -70,10 +70,15 @@ async function showMonth(m) {
   viewer.scrollIntoView({ behavior: "smooth" });
   try {
     const ids = await monthTokenIds(m);
+    const data = ids.length ? await getTokensData(ids) : [];
+    // Proofs first, then mined tokens by edition number; the token id stays in the tooltip.
+    const list = ids.map((id, i) => ({ id, data: data[i], proof: Number(data[i].edition) !== Edition.Mined }))
+      .sort((a, b) => b.proof - a.proof || Number(a.data.number) - Number(b.data.number));
     render(
       tokens,
-      ids.length
-        ? h("div", { class: "row token-list" }, ids.map((id) => h("button", { class: "secondary small", type: "button", onclick: () => showToken(id) }, `#${id}`)))
+      list.length
+        ? h("div", { class: "row token-list" }, list.map(({ id, data, proof }) =>
+          h("button", { class: `secondary small${proof ? " proof" : ""}`, type: "button", title: t("gallery.tokenId", { id }), onclick: () => showToken(id) }, editionLabel(data))))
         : h("span", { class: "muted" }, m.status === "upcoming" ? t("gallery.notOpen") : t("gallery.noToken")),
     );
   } catch (err) {
@@ -116,15 +121,17 @@ async function showToken(id) {
   }
 }
 
+/** Name of a token within its month, like the NFT: edition number for mined tokens, the proof's kind otherwise. */
+const editionLabel = (data) =>
+  Number(data.edition) === Edition.ArtistProof ? t("gallery.edition.artist")
+    : Number(data.edition) === Edition.TeamProof ? t("gallery.edition.team")
+      : `#${data.number}`;
+
 /** Small card of a token in "My tokens": the month's artwork, the token id, the month and the edition. */
 function tokenCard(id, data) {
   const m = months[Number(data.month) - 1];
-  // Named like the NFT: edition number for mined tokens, the proof's kind otherwise. The id comes second: it also
-  // counts the proofs, so it differs from the edition number.
-  const edition =
-    Number(data.edition) === Edition.ArtistProof ? t("gallery.edition.artist")
-      : Number(data.edition) === Edition.TeamProof ? t("gallery.edition.team")
-        : `#${data.number}`;
+  // The id comes second: it also counts the proofs, so it differs from the edition number.
+  const edition = editionLabel(data);
   const open = () => showToken(id);
   return h(
     "div",

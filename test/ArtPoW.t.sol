@@ -809,11 +809,19 @@ contract ArtPoWTest is Test {
         scheduleMonth2();
         vm.warp(M1_START);
         claimNow(1, alice);
+        nft.claimReserved(1, ArtPoW.Edition.ArtistProof);
+        nft.claimReserved(1, ArtPoW.Edition.TeamProof);
         claimNow(1, bob);
         vm.warp(M1_END);
+        // Proofs of the new month come first: they take token ids but not edition numbers.
+        nft.claimReserved(2, ArtPoW.Edition.ArtistProof);
         uint256 id = claimNow(2, alice);
-        assertEq(id, 3);
+        assertEq(id, 6);
         assertEq(nft.tokenData(id).number, 1);
+        assertEq(vm.parseJsonString(nft.tokenJson(id), ".name"), unicode"December 2026 • #1");
+        assertEq(vm.parseJsonString(nft.tokenJson(4), ".name"), unicode"November 2026 • #2 / 2");
+        uint256 id2 = claimNow(2, bob);
+        assertEq(vm.parseJsonString(nft.tokenJson(id2), ".name"), unicode"December 2026 • #2");
     }
 
     function test_LeadingZeroBits() public view {
