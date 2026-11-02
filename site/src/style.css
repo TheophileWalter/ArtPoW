@@ -378,7 +378,8 @@ button.small, .button.small { padding: 7px 10px; font-size: 0.8rem; }
 .paper th { font-family: var(--serif); font-size: 1em; color: var(--text); font-weight: 400; text-transform: none; border-bottom: 1px solid var(--text); }
 .paper .num { text-align: right; }
 .paper .references { list-style: none; padding: 0; margin: 0; text-align: left; }
-.paper .references li { display: grid; grid-template-columns: 2.2em 1fr; margin-bottom: 3px; scroll-margin-top: 80px; }
+.paper .references li { position: relative; padding-left: 2.2em; margin-bottom: 3px; scroll-margin-top: 80px; }
+.paper .references li > span:first-child { position: absolute; left: 0; }
 .paper .references li:target, .paper h2:target { background: var(--halo-1); border-radius: 6px; }
 @media (max-width: 640px) {
   .paper { padding: 26px 18px; font-size: 1.05rem; text-align: left; }
