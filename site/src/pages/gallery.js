@@ -89,7 +89,8 @@ async function showMonth(m) {
 async function showToken(id) {
   render(viewer, h("p", { class: "muted" }, t("gallery.loadingToken", { id })));
   try {
-    const { owner, metadata } = await getToken(id);
+    const [{ owner, metadata }, [data]] = await Promise.all([getToken(id), getTokensData([id])]);
+    const month = months[Number(data.month) - 1];
     const media = h("div", { class: "art-frame" }, h("img", { class: "artwork", src: resolveUri(metadata.image), alt: metadata.name }));
     render(
       viewer,
@@ -100,6 +101,7 @@ async function showToken(id) {
         h(
           "div",
           {},
+          month ? h("p", {}, h("button", { class: "secondary small", type: "button", onclick: () => showMonth(month) }, t("gallery.backToMonth", { label: month.content.label }))) : null,
           h("h2", { style: "margin-top:0" }, metadata.name),
           h("p", {}, t("gallery.owner"), h("a", { href: addressUrl(owner), target: "_blank", rel: "noopener" }, shortAddress(owner))),
           metadata.animation_url ? h("p", {}, h("a", { href: resolveUri(metadata.animation_url), target: "_blank", rel: "noopener" }, t("gallery.openAnimation"))) : null,

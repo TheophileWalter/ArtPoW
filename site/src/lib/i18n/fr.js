@@ -170,6 +170,7 @@ export default {
   "gallery.loadingToken": "Chargement du token #{id}…",
   "gallery.owner": "Propriétaire : ",
   "gallery.tokenPage": "Page du token",
+  "gallery.backToMonth": "← Retour à {label}",
   "gallery.tokenError": "Token #{id} : {error}",
   "gallery.connectFirst": "Connectez d'abord votre wallet.",
   "gallery.scanning": "Recherche de vos tokens…",
