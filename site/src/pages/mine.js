@@ -2,7 +2,7 @@
 import { encodeAbiParameters, getAddress, isAddress, keccak256 } from "viem";
 import { MINING_MARGIN_CLAIMS, chainId, contractAddress } from "../lib/config.js";
 import { aimTarget, expectedHashes, findMintEvent, getMonth, leadingZeroBits, publicClient, read } from "../lib/contract.js";
-import { formatNumber, t, tn } from "../lib/i18n.js";
+import { formatNumber, lang, t, tn } from "../lib/i18n.js";
 import { h, initLayout, notify, render } from "../lib/layout.js";
 import { Miner } from "../lib/miner.js";
 import { errorMessage, errorName, formatDate, formatDuration, formatHashes, resolveUri, shortAddress, txUrl } from "../lib/util.js";
@@ -32,7 +32,14 @@ const recipientNote = h("p", { class: "muted" });
 const threadsSelect = h("select", { style: "max-width:120px" });
 const startButton = h("button", { type: "button" }, t("mine.start"));
 const progressBar = h("div", {});
-const progressText = h("p", { class: "muted" }, "");
+// Fixed tiles, updated in place: the values change several times a second, a sentence would keep shifting.
+const progressValues = { rate: h("div", { class: "value" }), tried: h("div", { class: "value" }), chance: h("div", { class: "value" }), left: h("div", { class: "value" }) };
+const progressText = h(
+  "div",
+  { class: "stats stats-4", hidden: true, style: "margin-bottom:10px" },
+  Object.entries(progressValues).map(([key, value]) => h("div", { class: "stat" }, value, h("div", { class: "label" }, t(`mine.progress.${key}`)))),
+);
+const closesSoon = h("p", { class: "muted", hidden: true }, t("mine.closesSoon"));
 const resultBox = h("div", {});
 
 for (let i = 1; i <= Math.max(1, navigator.hardwareConcurrency || 4); i++) {
@@ -155,9 +162,13 @@ function onProgress({ hashrate, tried, expected }) {
   const p = 1 - Math.exp(-tried / expected);
   const remaining = Math.max(0, expected - tried) / Math.max(hashrate, 1);
   render(progressBar, h("div", { class: "progress" }, h("div", { style: `width:${(p * 100).toFixed(1)}%` })));
-  progressText.textContent = t("mine.progress", { rate: formatHashes(hashrate), tried: formatHashes(tried), chance: (p * 100).toFixed(0), time: formatDuration(remaining) });
+  progressText.hidden = false;
+  progressValues.rate.textContent = `${formatHashes(hashrate)}H/s`;
+  progressValues.tried.textContent = formatHashes(tried);
+  progressValues.chance.textContent = p.toLocaleString(lang, { style: "percent" });
+  progressValues.left.textContent = formatDuration(remaining);
   const left = Number(state.month.end) - Date.now() / 1000;
-  if (left < (expected / Math.max(hashrate, 1)) * 2) progressText.textContent += t("mine.closesSoon");
+  closesSoon.hidden = left >= (expected / Math.max(hashrate, 1)) * 2;
 }
 
 async function refreshTarget() {
@@ -284,6 +295,7 @@ render(
     h("div", { class: "row", style: "margin-top:8px" }, threadsSelect, startButton),
     progressBar,
     progressText,
+    closesSoon,
   ),
   resultBox,
 );

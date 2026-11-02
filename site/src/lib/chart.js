@@ -12,9 +12,10 @@ function s(tag, attrs = {}, text) {
 /**
  * Creates a chart in `container`; returns { update(options) }.
  * options: {
- *   series: [{ label, color, points: [[x, y], …], width? }]  (the first series drives the crosshair),
+ *   series: [{ label, color, points: [[x, y], …], width?, dash?, right? }]  (the first series drives the crosshair),
  *   x: { min, max, ticks: [values], format(v) }, y: { min, max, log?, ticks: [values], format(v) },
- *   xLabel, yLabel, markers: [{ x, label }], points: [{ x, y, label }], tooltip(x, values) => [[label, value, color?]],
+ *   y2: same as y, the right-hand axis of the series marked `right`,
+ *   xLabel, yLabel, y2Label, markers: [{ x, label }], points: [{ x, y, label }], tooltip(x, values) => [[label, value, color?]],
  *   legend: boolean, height
  * }
  */
@@ -37,17 +38,20 @@ export function lineChart(container, initial) {
   const draw = () => {
     const width = Math.max(280, wrap.clientWidth);
     const height = options.height ?? (width < 520 ? 240 : 300);
-    const m = { top: 28, right: 16, bottom: 40, left: width < 520 ? 52 : 64 };
-    const { x, y } = options;
-    const ty = (v) => (y.log ? Math.log10(v) : v);
+    const m = { top: 28, right: options.y2 ? 62 : 16, bottom: 40, left: width < 520 ? 52 : 64 };
+    const { x, y, y2 } = options;
     const X = (v) => m.left + ((v - x.min) / (x.max - x.min)) * (width - m.left - m.right);
-    const Y = (v) => {
-      const lo = ty(y.min);
-      const hi = ty(y.max);
-      const c = Math.min(hi, Math.max(lo, ty(Math.max(v, y.log ? 1e-12 : -Infinity))));
+    const scale = (axis) => (v) => {
+      const ty = (u) => (axis.log ? Math.log10(u) : u);
+      const lo = ty(axis.min);
+      const hi = ty(axis.max);
+      const c = Math.min(hi, Math.max(lo, ty(Math.max(v, axis.log ? 1e-12 : -Infinity))));
       return height - m.bottom - ((c - lo) / (hi - lo)) * (height - m.top - m.bottom);
     };
-    geometry = { X, Y, m, width, height };
+    const Y = scale(y);
+    const Y2 = y2 ? scale(y2) : Y;
+    const seriesY = (sr) => (sr.right ? Y2 : Y);
+    geometry = { X, seriesY, m, width, height };
 
     const next = s("svg", { width, height, viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": options.ariaLabel ?? "" });
     const grid = s("g", { class: "chart-grid" });
@@ -55,10 +59,12 @@ export function lineChart(container, initial) {
       grid.append(s("line", { x1: m.left, x2: width - m.right, y1: Y(v), y2: Y(v) }));
       grid.append(s("text", { x: m.left - 8, y: Y(v) + 4, "text-anchor": "end", class: "chart-tick" }, y.format(v)));
     }
+    for (const v of y2?.ticks ?? []) grid.append(s("text", { x: width - m.right + 8, y: Y2(v) + 4, class: "chart-tick" }, y2.format(v)));
     for (const v of x.ticks) grid.append(s("text", { x: X(v), y: height - m.bottom + 18, "text-anchor": "middle", class: "chart-tick" }, x.format(v)));
     grid.append(s("line", { x1: m.left, x2: width - m.right, y1: height - m.bottom, y2: height - m.bottom, class: "chart-axis" }));
     if (options.xLabel) grid.append(s("text", { x: width - m.right, y: height - 6, "text-anchor": "end", class: "chart-label" }, options.xLabel));
     if (options.yLabel) grid.append(s("text", { x: m.left - 8, y: 12, class: "chart-label" }, options.yLabel));
+    if (options.y2Label) grid.append(s("text", { x: width - 2, y: 12, "text-anchor": "end", class: "chart-label" }, options.y2Label));
     next.append(grid);
 
     for (const mk of options.markers ?? []) {
@@ -68,8 +74,8 @@ export function lineChart(container, initial) {
       next.append(g);
     }
     for (const sr of options.series) {
-      const d = sr.points.map(([px, py], i) => `${i ? "L" : "M"}${X(px).toFixed(1)},${Y(py).toFixed(1)}`).join("");
-      next.append(s("path", { d, fill: "none", stroke: sr.color, "stroke-width": sr.width ?? 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      const d = sr.points.map(([px, py], i) => `${i ? "L" : "M"}${X(px).toFixed(1)},${seriesY(sr)(py).toFixed(1)}`).join("");
+      next.append(s("path", { d, fill: "none", stroke: sr.color, "stroke-width": sr.width ?? 2, "stroke-dasharray": sr.dash, "stroke-linejoin": "round", "stroke-linecap": "round" }));
     }
     for (const p of options.points ?? []) {
       next.append(s("circle", { cx: X(p.x), cy: Y(p.y), r: 6, fill: p.color, stroke: "var(--surface)", "stroke-width": 2 }));
@@ -92,6 +98,10 @@ export function lineChart(container, initial) {
         const item = document.createElement("span");
         const key = document.createElement("i");
         key.style.background = sr.color;
+        if (sr.dash) {
+          key.className = "dashed";
+          key.style.color = sr.color;
+        }
         item.append(key, document.createTextNode(sr.label));
         legend.append(item);
       }
@@ -122,7 +132,7 @@ export function lineChart(container, initial) {
     cross.querySelector("line").setAttribute("x2", cx);
     cross.querySelectorAll("circle").forEach((c, k) => {
       c.setAttribute("cx", cx);
-      c.setAttribute("cy", geometry.Y(values[k]));
+      c.setAttribute("cy", geometry.seriesY(options.series[k])(values[k]));
     });
     tip.replaceChildren();
     for (const [label, value, color] of options.tooltip(xv, values)) {

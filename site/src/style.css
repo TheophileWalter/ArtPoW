@@ -34,6 +34,7 @@
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   /* Chart marks: darker than the accent text, validated for the chart surface (dataviz palette check) */
   --chart-1: #14a090;
+  --chart-2: #cf6a2b;
   --chart-ref: #8a92a8;
 }
 
@@ -62,6 +63,7 @@
   --shadow: rgba(17, 19, 26, 0.12);
   --glow: 0.3;
   --chart-1: #0a9a88;
+  --chart-2: #c2571a;
   --chart-ref: #7a8297;
 }
 
@@ -437,6 +439,7 @@ button.small, .button.small { padding: 7px 10px; font-size: 0.8rem; }
 .chart-tip { position: absolute; z-index: 2; pointer-events: none; display: grid; gap: 3px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line-2); box-shadow: 0 8px 24px var(--shadow); font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
 .chart-tip strong { color: var(--text); font-family: var(--mono); }
 .chart-note { font-size: 0.85rem; margin-top: 6px; }
+.chart-legend i.dashed { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; }
 .chart-tip[hidden], .chart-legend[hidden] { display: none; }
 
 /* Gallery: the connected wallet's tokens */
@@ -454,6 +457,9 @@ button.small, .button.small { padding: 7px 10px; font-size: 0.8rem; }
 .chart-bar:focus-visible rect { stroke: var(--chart-1); stroke-width: 1; }
 
 /* Statistics */
+.stats[hidden] { display: none; }
+.stats-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 600px) { .stats-4 { grid-template-columns: repeat(2, 1fr); } }
 .stats-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); }
 .stat .sub { font-size: 0.78rem; color: var(--faint); margin-top: 4px; overflow-wrap: anywhere; }
 .stats-table td.num, .stats-table th:nth-child(n+5) { text-align: right; font-family: var(--mono); white-space: nowrap; }

@@ -1,8 +1,8 @@
-// "How it works": the system explained for everyone, with a hashing demo, a difficulty calculator and month
+// "How it works": the system explained for everyone, with a hashing demo, a month simulator and month
 // scenarios computed with the contract's rule (src/lib/explainer.js).
 import { keccak256, toHex } from "viem";
 import { lineChart } from "../lib/chart.js";
-import { BROWSER_RATE, hashesNeeded, scheduled, simulateMonth } from "../lib/explainer.js";
+import { BROWSER_RATE, HALF_LIFE, hashesNeeded, scheduled, simulateMonth } from "../lib/explainer.js";
 import { formatNumber, t } from "../lib/i18n.js";
 import { h, initLayout, render } from "../lib/layout.js";
 import { formatDuration } from "../lib/util.js";
@@ -10,6 +10,7 @@ import { formatDuration } from "../lib/util.js";
 initLayout("how.html");
 const app = document.getElementById("app");
 const C1 = "var(--chart-1)";
+const C2 = "var(--chart-2)";
 const REF = "var(--chart-ref)";
 
 const section = (title, ...children) => h("section", { class: "how-section" }, h("h2", {}, title), ...children);
@@ -80,72 +81,79 @@ function lotteryDemo() {
   );
 }
 
-// --- 2. Difficulty calculator ---------------------------------------------------------------------------------
+// --- 2. Difficulty over a month ---------------------------------------------------------------------------------
 
-const MINUTE = 60;
-const TIME_TICKS = [MINUTE, 3600, 86400, 30 * 86400, 365 * 86400];
-const timeTick = (v) => ({ 60: `1 ${t("unit.min")}`, 3600: `1 ${t("unit.h")}`, 86400: `1 ${t("unit.d")}`, [30 * 86400]: `30 ${t("unit.d")}`, [365 * 86400]: `365 ${t("unit.d")}` })[v];
-const browserSeconds = (ahead) => hashesNeeded(ahead) / BROWSER_RATE;
-const longTime = (seconds) => (seconds > 365 * 86400 ? `> 365 ${t("unit.d")}` : formatDuration(seconds));
+const YEAR = 365 * 86400;
+const browserSeconds = (factor) => (hashesNeeded(0) * factor) / BROWSER_RATE;
+const longTime = (seconds) => (seconds > YEAR ? `> 365 ${t("unit.d")}` : formatDuration(seconds));
+const timesFloor = (factor) => `× ${factor < 10 ? formatNumber(factor, { maximumFractionDigits: 2 }) : formatNumber(Math.round(factor))}`;
 
 function paceCalculator() {
-  const day = h("input", { type: "range", min: 0, max: 30, step: 0.5, value: 15 });
-  const minted = h("input", { type: "range", min: 0, max: 1500, step: 5, value: 560 });
-  const dayOut = h("output", {});
-  const mintedOut = h("output", {});
-  const tiles = h("div", { class: "stats" });
-  const note = h("p", { class: "muted chart-note" });
+  const people = h("input", { type: "range", min: 0, max: 5000, step: 100, value: 3000 });
+  const gpus = h("input", { type: "range", min: 0, max: 20, step: 1, value: 0 });
+  const peopleOut = h("output", {});
+  const gpusOut = h("output", {});
+  const tiles = h("div", { class: "stats stats-4" });
   const chartBox = h("div", {});
   let chart = null;
 
   const update = () => {
-    const d = Number(day.value);
-    const n = Number(minted.value);
-    const line = scheduled(d);
-    const ahead = n - line;
-    const factor = 2 ** (Math.max(0, ahead) / 10);
-    dayOut.textContent = formatNumber(d);
-    mintedOut.textContent = formatNumber(n);
+    const r = simulateMonth({ people: Number(people.value), gpus: Number(gpus.value) });
+    const points = r.points.map((q) => ({ ...q, factor: 2 ** (Math.max(0, q.minted - q.scheduled) / HALF_LIFE) }));
+    const peak = points.reduce((a, b) => (b.factor > a.factor ? b : a));
+    peopleOut.textContent = formatNumber(Number(people.value));
+    gpusOut.textContent = formatNumber(Number(gpus.value));
     render(
       tiles,
-      stat(formatNumber(Math.round(line)), t("how.pace.expected")),
-      stat(Math.abs(ahead) < 0.5 ? "0" : formatNumber(Math.round(Math.abs(ahead))), Math.abs(ahead) < 0.5 ? t("how.pace.onLine") : ahead > 0 ? t("how.pace.aheadBy") : t("how.pace.behindBy")),
-      stat(`× ${factor < 10 ? formatNumber(factor, { maximumFractionDigits: 2 }) : formatNumber(Math.round(factor))}`, t("how.pace.difficulty")),
-      stat(longTime(browserSeconds(ahead)), t("how.pace.time")),
+      stat(formatNumber(Math.round(r.minted)), t("how.month.total")),
+      stat(timesFloor(peak.factor), t("how.pace.peak")),
+      stat(longTime(browserSeconds(peak.factor)), t("how.pace.peakTime")),
+      stat(`${formatNumber(Math.round(r.served * 100))} %`, t("how.month.served")),
     );
-    note.textContent = t("how.pace.chartNote", { day: formatNumber(d) });
-    const points = [];
-    // The curve stops where it leaves the chart (a year): beyond, mining one more token is out of reach.
-    for (let x = 0; x <= 1500; x += 5) {
-      points.push([x, browserSeconds(x - line)]);
-      if (browserSeconds(x - line) > 365 * 86400) break;
-    }
+    const yMax = Math.max(1000, Math.ceil(r.minted / 250) * 250);
+    // Whole powers of ten, at least up to × 10 so a flat curve still reads as "the floor".
+    const decades = Math.max(1, Math.ceil(Math.log10(peak.factor)));
     const options = {
-      series: [{ label: t("how.pace.time"), color: C1, points }],
-      x: { min: 0, max: 1500, ticks: [0, 250, 500, 750, 1000, 1250, 1500], format: (v) => formatNumber(v) },
-      y: { min: MINUTE, max: 365 * 86400, log: true, ticks: TIME_TICKS, format: timeTick },
-      xLabel: t("how.pace.xAxis"),
+      legend: true,
+      series: [
+        { label: t("how.pace.series.minted"), color: C1, points: points.map((q) => [q.day, q.minted]) },
+        { label: t("how.pace.series.difficulty"), color: C2, dash: "6 4", right: true, points: points.map((q) => [q.day, q.factor]) },
+      ],
+      x: { min: 0, max: 30, ticks: [0, 5, 10, 15, 20, 25, 30], format: (v) => formatNumber(v) },
+      y: { min: 0, max: yMax, ticks: Array.from({ length: yMax / 250 + 1 }, (_, i) => i * 250), format: (v) => formatNumber(v) },
+      y2: {
+        min: 1,
+        max: 10 ** decades,
+        log: true,
+        ticks: Array.from({ length: decades + 1 }, (_, i) => 10 ** i),
+        format: (v) => `× ${formatNumber(v, { notation: "compact" })}`,
+      },
+      xLabel: t("how.month.xAxis"),
       yLabel: t("how.pace.yAxis"),
+      y2Label: t("how.pace.y2Axis"),
       ariaLabel: t("how.pace.chartTitle"),
-      markers: [{ x: line, label: t("how.pace.lineMarker", { n: formatNumber(Math.round(line)) }) }],
-      points: [{ x: n, y: browserSeconds(ahead), color: C1, label: t("how.pace.now") }],
-      tooltip: (x, [secs]) => [[t("how.pace.xAxis"), formatNumber(x)], [t("how.pace.time"), longTime(secs), C1]],
+      tooltip: (x, [m, factor]) => [
+        [t("how.month.day", { day: formatNumber(Math.round(x * 10) / 10) }), ""],
+        [t("how.pace.series.minted"), formatNumber(Math.round(m)), C1],
+        [t("how.pace.series.difficulty"), timesFloor(factor), C2],
+        [t("how.month.series.line"), formatNumber(Math.round(scheduled(x)))],
+      ],
     };
     if (chart) chart.update(options);
     else chart = lineChart(chartBox, options);
   };
-  day.addEventListener("input", update);
-  minted.addEventListener("input", update);
+  people.addEventListener("input", update);
+  gpus.addEventListener("input", update);
   const box = h(
     "div",
     { class: "card demo" },
     h("div", { class: "grid2" },
-      h("div", {}, h("label", {}, t("how.pace.day"), " · ", dayOut), day),
-      h("div", {}, h("label", {}, t("how.pace.minted"), " · ", mintedOut), minted)),
+      h("div", {}, h("label", {}, t("how.pace.people"), " · ", peopleOut), people),
+      h("div", {}, h("label", {}, t("how.pace.gpus"), " · ", gpusOut), gpus)),
     tiles,
     h("h3", { style: "margin-top:20px" }, t("how.pace.chartTitle")),
     chartBox,
-    note,
+    h("p", { class: "muted chart-note" }, t("how.pace.chartNote")),
   );
   requestAnimationFrame(update);
   return box;
