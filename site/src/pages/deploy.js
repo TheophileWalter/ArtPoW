@@ -8,7 +8,7 @@ import { h, initLayout, notify, render } from "../lib/layout.js";
 import { addressUrl, errorMessage, shortAddress, txUrl } from "../lib/util.js";
 import { account, connect, deploy, onAccountChange } from "../lib/wallet.js";
 
-initLayout("deploy.html");
+initLayout("deploy");
 const app = document.getElementById("app");
 const STORAGE_KEY = `artpow-deployment:${chainId}`;
 

@@ -13,7 +13,7 @@ const root = new URL("../../", import.meta.url);
 const site = new URL("../", import.meta.url);
 const texPath = new URL("docs/whitepaper/whitepaper.tex", root);
 const pagePath = new URL("whitepaper.html", site);
-const figureDir = new URL("public/whitepaper/", site);
+const figureDir = new URL("public/whitepaper-figures/", site);
 const START = "<!-- whitepaper:start";
 const END = "<!-- whitepaper:end -->";
 
@@ -114,7 +114,7 @@ const BLOCKS = [
     const picture = m[1].match(/\\begin\{tikzpicture\}[\s\S]*\\end\{tikzpicture\}/)[0];
     const caption = m[1].match(/\\caption\*\{(?:\\small\s*)?([\s\S]*?)\}\s*$/m)?.[1] ?? "";
     const file = tikzToSvg(picture, ++figures);
-    return `<figure><img src="whitepaper/${file}" alt="${escape(caption)}" loading="lazy" /><figcaption>${inline(caption)}</figcaption></figure>`;
+    return `<figure><img src="whitepaper-figures/${file}" alt="${escape(caption)}" loading="lazy" /><figcaption>${inline(caption)}</figcaption></figure>`;
   }],
   [/\\begin\{center\}\s*\\begin\{tabular\}\{([a-z]+)\}([\s\S]*?)\\end\{tabular\}\s*\\end\{center\}/y, (m) => table(m[1], m[2])],
   [/\\\[([\s\S]*?)\\\]/y, (m) => math(m[1], true)],

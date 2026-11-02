@@ -29,14 +29,14 @@ export function h(tag, attrs = {}, ...children) {
 
 // The administration page is deliberately left out: it is reached by its address only.
 const PAGES = [
-  ["index.html", "nav.home"],
-  ["how.html", "nav.how"],
-  ["mine.html", "nav.mine"],
-  ["gallery.html", "nav.gallery"],
-  ["stats.html", "nav.stats"],
-  ["whitepaper.html", "nav.whitepaper"],
+  ["./", "nav.home"],
+  ["how", "nav.how"],
+  ["mine", "nav.mine"],
+  ["gallery", "nav.gallery"],
+  ["stats", "nav.stats"],
+  ["whitepaper", "nav.whitepaper"],
 ];
-const TITLES = { "index.html": "title.home", "how.html": "title.how", "mine.html": "title.mine", "gallery.html": "title.gallery", "stats.html": "title.stats", "whitepaper.html": "title.whitepaper" };
+const TITLES = { "./": "title.home", how: "title.how", mine: "title.mine", gallery: "title.gallery", stats: "title.stats", whitepaper: "title.whitepaper" };
 
 export function initLayout(active) {
   if (TITLES[active]) document.title = t(TITLES[active]);
@@ -97,7 +97,7 @@ export function initLayout(active) {
   const header = h(
     "header",
     { class: "site-header" },
-    h("a", { href: "index.html", class: "brand" }, h("span", { class: "logo" }, "0x"), "ArtPoW"),
+    h("a", { href: "./", class: "brand" }, h("span", { class: "logo" }, "0x"), "ArtPoW"),
     nav,
     h("div", { class: "header-right" }, h("span", { class: "badge network" }, h("span", { class: "dot" }), chain.name), langSelect, themeButton, walletButton, menuButton),
   );
@@ -118,7 +118,7 @@ export function initLayout(active) {
         { class: "links" },
         h("a", { href: addressUrl(contractAddress), target: "_blank", rel: "noopener" }, t("footer.contract", { address: shortAddress(contractAddress) })),
         sourceUrl ? h("a", { href: sourceUrl, target: "_blank", rel: "noopener" }, t("footer.source")) : null,
-        h("a", { href: "whitepaper.html" }, t("footer.whitepaper")),
+        h("a", { href: "whitepaper" }, t("footer.whitepaper")),
       ),
     ),
   );
@@ -174,7 +174,7 @@ function walletDialog() {
       "div",
       { class: "actions" },
       h("a", { class: "button secondary", href: addressUrl(a.address), target: "_blank", rel: "noopener" }, t("wallet.explorer")),
-      contractAddress !== zeroAddress ? h("a", { class: "button secondary", href: "gallery.html" }, t("wallet.myTokens")) : null,
+      contractAddress !== zeroAddress ? h("a", { class: "button secondary", href: "gallery" }, t("wallet.myTokens")) : null,
       disconnectButton,
     ),
   );

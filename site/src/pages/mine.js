@@ -8,7 +8,7 @@ import { Miner } from "../lib/miner.js";
 import { errorMessage, errorName, formatDate, formatDuration, formatHashes, resolveUri, shortAddress, txUrl } from "../lib/util.js";
 import { account, connect, onAccountChange, write } from "../lib/wallet.js";
 
-initLayout("mine.html");
+initLayout("mine");
 const app = document.getElementById("app");
 
 const state = { month: null, seed: null, target: 0n, recipient: "", proof: null, miner: null, poll: null };
@@ -245,7 +245,7 @@ async function claim() {
         h("h3", {}, ev ? t("mine.claimedTitle", { name: `${state.month.content.label} • #${ev.args.number}` }) : t("mine.claimedShort")),
         id ? h("p", { class: "muted" }, t("mine.tokenId", { id })) : null,
         h("div", { class: "row" },
-          id ? h("a", { class: "button", href: `gallery.html#token=${id}` }, t("mine.seeGallery")) : null,
+          id ? h("a", { class: "button", href: `gallery#token=${id}` }, t("mine.seeGallery")) : null,
           txUrl(receipt.transactionHash) ? h("a", { class: "button secondary", href: txUrl(receipt.transactionHash), target: "_blank", rel: "noopener" }, t("mine.transaction")) : null,
         ),
       ),

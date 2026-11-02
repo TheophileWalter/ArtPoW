@@ -4,5 +4,5 @@
 import { lang } from "../lib/i18n.js";
 import { initLayout } from "../lib/layout.js";
 
-initLayout("whitepaper.html");
+initLayout("whitepaper");
 document.getElementById("english-only").hidden = lang === "en";

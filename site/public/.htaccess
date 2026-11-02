@@ -1,3 +1,6 @@
+# No folder listings.
+Options -Indexes
+
 RewriteEngine On
 
 # HTTPS only. OVH shared hosting terminates TLS in front of Apache, where %{HTTPS} can stay off: test the port
@@ -12,5 +15,19 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L,NE]
 </IfModule>
 
 # Every token's metadata links to <website>/token/<id> (external_url); show it in the gallery viewer.
-# Absolute target: a relative one is resolved against the server's directory path. Assumes the site is at the root.
-RewriteRule ^token/([0-9]+)/?$ /gallery.html#token=$1 [R=302,NE,L]
+# Absolute targets: a relative one is resolved against the server's directory path. Assumes the site is at the root.
+RewriteRule ^token/([0-9]+)/?$ /gallery#token=$1 [R=302,NE,L]
+
+# Addresses without .html. Old links are redirected: THE_REQUEST is the address asked by the browser, so the internal
+# rewrite below does not loop. The query string and the #fragment are kept.
+RewriteCond %{THE_REQUEST} ^[A-Z]+\s/index\.html[?\s]
+RewriteRule ^ / [R=301,L]
+RewriteCond %{THE_REQUEST} ^[A-Z]+\s/([^/?\s]+)\.html[?\s]
+RewriteRule ^ /%1 [R=301,NE,L]
+
+# A trailing slash would break the pages' relative paths.
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/.]+)/$ /$1 [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^([^/.]+)$ $1.html [L]

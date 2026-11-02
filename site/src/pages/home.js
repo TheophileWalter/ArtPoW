@@ -5,7 +5,7 @@ import { t } from "../lib/i18n.js";
 import { h, initLayout, render } from "../lib/layout.js";
 import { errorMessage, formatDate, formatDuration, resolveUri } from "../lib/util.js";
 
-initLayout("index.html");
+initLayout("./");
 const app = document.getElementById("app");
 
 const steps = ["mine", "claim", "collect"].map((k) => [t(`home.step.${k}`), t(`home.step.${k}Text`)]);
@@ -75,10 +75,10 @@ async function load() {
         h("div", { class: "stat" }, h("div", { class: "value" }, formatDuration(Number(current.end) - now)), h("div", { class: "label" }, t("common.left"))),
         h("div", { class: "stat" }, h("div", { class: "value" }, `~${formatDuration(seconds)}`), h("div", { class: "label" }, t("home.toMine"))),
       ),
-      h("div", { class: "row" }, h("a", { class: "button", href: "mine.html" }, t("home.mineCta")), h("a", { class: "button secondary", href: "gallery.html" }, t("home.gallery"))),
+      h("div", { class: "row" }, h("a", { class: "button", href: "mine" }, t("home.mineCta")), h("a", { class: "button secondary", href: "gallery" }, t("home.gallery"))),
     );
   } else if (current) {
-    statusBlock = h("div", { class: "row" }, h("span", { class: "muted" }, t("home.nextOpens", { date: formatDate(current.start) })), h("a", { class: "button secondary", href: "gallery.html" }, t("home.pastEditions")));
+    statusBlock = h("div", { class: "row" }, h("span", { class: "muted" }, t("home.nextOpens", { date: formatDate(current.start) })), h("a", { class: "button secondary", href: "gallery" }, t("home.pastEditions")));
   } else {
     statusBlock = h("p", { class: "muted" }, t("home.noEdition"));
   }
@@ -101,7 +101,7 @@ async function load() {
     h("div", { class: "kicker" }, t("home.howKicker")),
     h("h2", {}, t("home.howTitle")),
     h("div", { class: "steps" }, steps.map(([title, text]) => h("div", { class: "card" }, h("h3", {}, title), h("p", { class: "muted" }, text)))),
-    h("p", { style: "margin-top:16px" }, h("a", { href: "how.html" }, t("home.howLink"))),
+    h("p", { style: "margin-top:16px" }, h("a", { href: "how" }, t("home.howLink"))),
     h("div", { class: "kicker" }, t("home.rulesKicker")),
     h("h2", {}, t("home.rulesTitle")),
     h(
@@ -114,7 +114,7 @@ async function load() {
     h("div", { class: "kicker" }, t("home.readKicker")),
     h("h2", {}, t("home.readTitle")),
     h("p", { class: "muted" }, t("home.readText")),
-    h("a", { class: "button secondary", href: "whitepaper.html" }, t("home.readCta")),
+    h("a", { class: "button secondary", href: "whitepaper" }, t("home.readCta")),
   );
 }
 

@@ -9,7 +9,7 @@ administration page. No server: the build is a folder of HTML, CSS and JavaScrip
 | `index.html` | Presentation and the current edition |
 | `how.html` | The system explained for everyone: a hashing demo, a difficulty calculator and month scenarios (charts computed with the contract's rule, `src/lib/explainer.js`) |
 | `mine.html` | Mines a proof in the browser (WebAssembly, several Web Workers), then claims the token |
-| `gallery.html` | Every edition, a token viewer (`gallery.html#token=12`) and the tokens of the connected wallet |
+| `gallery.html` | Every edition, a token viewer (`/gallery#token=12`) and the tokens of the connected wallet |
 | `stats.html` | Statistics read live from the contract and its events: totals, averages, difficulty record, rarest hash, holders, tokens per month, rarity distribution, and for each month the tokens minted against the schedule and the difficulty over time (claim times from the `Claimed` events, closed months cached in the browser) |
 | `whitepaper.html` | The whitepaper as HTML (text, MathML formulas, SVG figures), generated from the LaTeX source, and the PDF to download |
 | `admin.html` | Every administrator function, sent from the wallet or exported as calldata for a multisig. Not linked from the other pages and marked `noindex`: open it by its address |
@@ -55,7 +55,8 @@ npm run dev       # development server
 npm run build     # static site in dist/
 ```
 
-The build uses relative paths, so `dist/` works from any folder or IPFS gateway.
+The build uses relative paths, so `dist/` works from any folder. Links between pages have no `.html` extension: the
+server has to resolve them (see below), which a plain IPFS gateway does not do.
 
 `deploy.html` and `ens.html` are one-off tools: `npm run dev` serves them, but `npm run build` leaves them out of
 `dist/`. To publish them for a while (e.g. to use them from a phone wallet on the real domain), build with
@@ -64,15 +65,17 @@ The build uses relative paths, so `dist/` works from any folder or IPFS gateway.
 `public/.htaccess` (copied into `dist/`, a hidden file: make sure the FTP client uploads it) configures Apache:
 - HTTPS only: plain HTTP is redirected (301), and browsers are told to use HTTPS directly for a year (HSTS). The rule
   tests the port and `X-Forwarded-Proto`, which works behind hosts that terminate TLS in front of Apache (OVH);
-- every token's metadata links to `<website>/token/<id>`: it is redirected to `gallery.html#token=<id>`.
+- every token's metadata links to `<website>/token/<id>`: it is redirected to `gallery#token=<id>`;
+- folders are not listed;
+- addresses have no `.html`: `/how` serves `how.html`, and `/how.html` is redirected (301) to `/how`, as is `/how/`.
 
-Other servers need the same two rules.
+Other servers need the same rules.
 
 ## Whitepaper
 
 The page shows the paper itself, not an embedded PDF. `npm run whitepaper` converts `docs/whitepaper/whitepaper.tex`
 into the content of `whitepaper.html` (formulas rendered to MathML by KaTeX at conversion time, TikZ figures compiled
-with `pdflatex` and converted to SVG in `public/whitepaper/`). Run it after editing the paper, and rebuild the PDF
+with `pdflatex` and converted to SVG in `public/whitepaper-figures/`, not `whitepaper/`, which would make `/whitepaper` a folder). Run it after editing the paper, and rebuild the PDF
 with `pdflatex`; `npm run build` warns when the HTML is older than the source. The converter handles the LaTeX the
 paper uses and stops with an error on anything else.
 

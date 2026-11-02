@@ -5,7 +5,7 @@ import { h, initLayout, notify, render } from "../lib/layout.js";
 import { addressUrl, errorMessage, formatDate, resolveUri, shortAddress } from "../lib/util.js";
 import { account } from "../lib/wallet.js";
 
-initLayout("gallery.html");
+initLayout("gallery");
 const app = document.getElementById("app");
 const viewer = h("div", { id: "viewer", style: "margin-top:20px" });
 const mine = h("div", {});

@@ -7,7 +7,7 @@ import { formatNumber, t } from "../lib/i18n.js";
 import { h, initLayout, render } from "../lib/layout.js";
 import { formatDuration } from "../lib/util.js";
 
-initLayout("how.html");
+initLayout("how");
 const app = document.getElementById("app");
 const C1 = "var(--chart-1)";
 const C2 = "var(--chart-2)";
@@ -265,6 +265,6 @@ render(
   section(t("how.faq.title"), h("div", { class: "faq" }, [1, 2, 3, 4, 5, 6].map((i) => h("details", { class: "card" }, h("summary", {}, t(`how.faq.q${i}`)), h("p", { class: "muted" }, t(`how.faq.a${i}`)))))),
 
   h("div", { class: "row", style: "margin-top:32px" },
-    h("a", { class: "button", href: "mine.html" }, t("how.cta.mine")),
-    h("a", { class: "button secondary", href: "whitepaper.html" }, t("how.cta.whitepaper"))),
+    h("a", { class: "button", href: "mine" }, t("how.cta.mine")),
+    h("a", { class: "button secondary", href: "whitepaper" }, t("how.cta.whitepaper"))),
 );

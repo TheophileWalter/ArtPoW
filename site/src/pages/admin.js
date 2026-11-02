@@ -18,7 +18,7 @@ import {
 } from "../lib/util.js";
 import { account, calldata, onAccountChange, write } from "../lib/wallet.js";
 
-initLayout("admin.html");
+initLayout("admin");
 const app = document.getElementById("app");
 let data = null; // { overview, months, admins, isAdmin, isProposed, now }
 let loadedAt = Date.now();

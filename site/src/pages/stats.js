@@ -7,7 +7,7 @@ import { h, initLayout, render } from "../lib/layout.js";
 import { FLOOR, TARGET_PER_MONTH, claimTimes, loadOverview, monthSeries } from "../lib/stats.js";
 import { errorMessage, formatDate, formatDuration, formatHashes } from "../lib/util.js";
 
-initLayout("stats.html");
+initLayout("stats");
 const app = document.getElementById("app");
 const C1 = "var(--chart-1)";
 const REF = "var(--chart-ref)";
