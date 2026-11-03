@@ -9,6 +9,19 @@ function s(tag, attrs = {}, text) {
   return el;
 }
 
+/** Value at `x` on the line drawn through sorted `points`: a series may have far fewer points than the first one. */
+export function valueAt(points, x) {
+  if (x <= points[0][0]) return points[0][1];
+  for (let i = 1; i < points.length; i++) {
+    const [x1, y1] = points[i];
+    if (x <= x1) {
+      const [x0, y0] = points[i - 1];
+      return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+    }
+  }
+  return points.at(-1)[1];
+}
+
 /**
  * Creates a chart in `container`; returns { update(options) }.
  * options: {
@@ -86,7 +99,9 @@ export function lineChart(container, initial) {
     }
     const cross = s("g", { class: "chart-cross", visibility: "hidden" });
     cross.append(s("line", { y1: m.top, y2: height - m.bottom }));
-    for (const sr of options.series) cross.append(s("circle", { r: 4, fill: sr.color, stroke: "var(--surface)", "stroke-width": 2 }));
+    // Last drawn is on top: when dots overlap, the first series, the chart's main one, stays visible.
+    options.series.forEach((sr, k) => cross.prepend(s("circle", { r: 4, fill: sr.color, stroke: "var(--surface)", "stroke-width": 2, "data-series": k })));
+    cross.prepend(cross.querySelector("line"));
     next.append(cross);
     if (svg) svg.replaceWith(next);
     else wrap.insertBefore(next, tip);
@@ -121,16 +136,14 @@ export function lineChart(container, initial) {
     const pts = options.series[0].points;
     hover = Math.max(0, Math.min(pts.length - 1, i));
     const xv = pts[hover][0];
-    const values = options.series.map((sr) => {
-      const p = sr.points.reduce((a, b) => (Math.abs(b[0] - xv) < Math.abs(a[0] - xv) ? b : a));
-      return p[1];
-    });
+    const values = options.series.map((sr) => valueAt(sr.points, xv));
     const cross = svg.querySelector(".chart-cross");
     const cx = geometry.X(xv);
     cross.setAttribute("visibility", "visible");
     cross.querySelector("line").setAttribute("x1", cx);
     cross.querySelector("line").setAttribute("x2", cx);
-    cross.querySelectorAll("circle").forEach((c, k) => {
+    cross.querySelectorAll("circle").forEach((c) => {
+      const k = Number(c.dataset.series);
       c.setAttribute("cx", cx);
       c.setAttribute("cy", geometry.seriesY(options.series[k])(values[k]));
     });

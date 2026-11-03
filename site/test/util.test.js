@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { valueAt } from "../src/lib/chart.js";
 import { aimTarget, decodeDataJson, leadingZeroBits } from "../src/lib/contract.js";
 import { DAY, createCountdown, isJsonSafe, monthLabel, resolveUri, validateSchedule } from "../src/lib/util.js";
 
@@ -99,4 +100,16 @@ test("the countdown stops at zero", () => {
   assert.equal(countdown(3, 5), 0, "a few seconds of wobble do not bring it back from zero");
   assert.equal(countdown(0, 6), 0);
   assert.equal(countdown(0, 7), 0);
+});
+
+test("a chart's value follows the line between its points", () => {
+  const line = [[0, 0], [30, 1000]];
+  assert.equal(valueAt(line, 0), 0);
+  assert.equal(valueAt(line, 3), 100);
+  assert.equal(valueAt(line, 30), 1000);
+  assert.equal(valueAt(line, 40), 1000, "past the end");
+  assert.equal(valueAt([[2, 5], [4, 7]], 1), 5, "before the start");
+  // A vertical step of a staircase series: the higher point is reached exactly at its x.
+  assert.equal(valueAt([[0, 0], [1, 0], [1, 1], [2, 1]], 1), 0);
+  assert.equal(valueAt([[0, 0], [1, 0], [1, 1], [2, 1]], 1.5), 1);
 });
