@@ -46,6 +46,21 @@ export function formatDuration(seconds) {
   return `${s} ${S}`;
 }
 
+/**
+ * Time left that counts down steadily although the hash rate estimate wobbles: it only follows the estimate when it
+ * drops below the countdown or clearly leaves it behind (the target changed, or the browser slowed the tab down).
+ */
+export function createCountdown() {
+  let left = null;
+  let updatedAt = 0;
+  return (estimate, now) => {
+    const ticked = left === null ? estimate : Math.max(0, left - (now - updatedAt));
+    left = estimate < ticked || estimate > ticked * 1.1 + 5 ? estimate : ticked;
+    updatedAt = now;
+    return left;
+  };
+}
+
 export function formatHashes(n) {
   const units = ["", "k", "M", "G", "T", "P", "E"];
   let i = 0;

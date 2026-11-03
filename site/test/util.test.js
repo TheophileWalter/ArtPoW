@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { aimTarget, decodeDataJson, leadingZeroBits } from "../src/lib/contract.js";
-import { DAY, isJsonSafe, monthLabel, resolveUri, validateSchedule } from "../src/lib/util.js";
+import { DAY, createCountdown, isJsonSafe, monthLabel, resolveUri, validateSchedule } from "../src/lib/util.js";
 
 const NOW = 2_000_000_000;
 const content = (over = {}) => ({
@@ -79,4 +79,24 @@ test("validateSchedule rejects a data: image that is not an image", () => {
   assert.equal(check("data:image/svg+xml;base64,PHN2Zz4=").length, 0);
   assert.equal(check("ipfs://bafyexample").length, 0);
   assert.match(check("data:text/plain;base64,ZGF0YTppbWFnZQ==").join(" "), /not an image/);
+});
+
+test("the countdown ticks down steadily through a wobbling estimate", () => {
+  const countdown = createCountdown();
+  assert.equal(countdown(100, 0), 100);
+  // The estimate goes back up a little: the countdown keeps going down, one second per second.
+  assert.equal(countdown(100.5, 1), 99);
+  assert.equal(countdown(99.8, 2), 98);
+  // It drops below: followed at once.
+  assert.equal(countdown(80, 3), 80);
+  // It clearly leaves the countdown behind (harder target, slowed tab): followed too.
+  assert.equal(countdown(200, 4), 200);
+});
+
+test("the countdown stops at zero", () => {
+  const countdown = createCountdown();
+  countdown(2, 0);
+  assert.equal(countdown(3, 5), 0, "a few seconds of wobble do not bring it back from zero");
+  assert.equal(countdown(0, 6), 0);
+  assert.equal(countdown(0, 7), 0);
 });

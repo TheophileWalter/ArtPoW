@@ -467,6 +467,7 @@ button.choice strong { font-size: 1rem; }
 button.choice span { font-size: 0.88rem; }
 .guide-summary { align-items: center; }
 .guide:not(:empty) { margin: 24px 0; }
+p[hidden] { display: none; }
 .stats-4 { grid-template-columns: repeat(4, 1fr); }
 @media (max-width: 600px) { .stats-4 { grid-template-columns: repeat(2, 1fr); } }
 .stats-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); }

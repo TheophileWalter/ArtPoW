@@ -7,7 +7,7 @@ import { formatNumber, lang, t, tn } from "../lib/i18n.js";
 import { h, initLayout, notify, render } from "../lib/layout.js";
 import { Miner } from "../lib/miner.js";
 import { submitClaim, waitForClaim } from "../lib/relay.js";
-import { errorMessage, errorName, formatDate, formatDuration, formatHashes, resolveUri, shortAddress, txUrl } from "../lib/util.js";
+import { createCountdown, errorMessage, errorName, formatDate, formatDuration, formatHashes, resolveUri, shortAddress, txUrl } from "../lib/util.js";
 import { account, connect, emailAccounts, onAccountChange, openAccount, write } from "../lib/wallet.js";
 
 initLayout("mine");
@@ -24,7 +24,7 @@ const firstRoute = () => {
   return ROUTES.includes(saved) && (saved !== "account" || emailAccounts()) ? saved : null;
 };
 
-const state = { month: null, seed: null, target: 0n, recipient: "", proof: null, miner: null, poll: null, route: firstRoute(), question: emailAccounts() ? "address" : "pol" };
+const state = { month: null, seed: null, target: 0n, recipient: "", proof: null, miner: null, poll: null, route: firstRoute(), question: emailAccounts() ? "address" : "pol", formDone: false };
 const usesRelay = () => state.route === "relay" || state.route === "account";
 
 const storageKey = (month, recipient) => `artpow-proof:${chainId}:${contractAddress}:${month}:${recipient.toLowerCase()}`;
@@ -116,6 +116,7 @@ function setRoute(route) {
   if (state.miner?.running) stopMining();
   state.route = route;
   state.proof = null;
+  state.formDone = false;
   render(resultBox);
   try {
     if (route) localStorage.setItem(ROUTE_KEY, route);
@@ -128,7 +129,7 @@ function setRoute(route) {
 
 function renderGuide() {
   const address = account().address;
-  minerCard.hidden = !state.route || (state.route === "account" && !address);
+  minerCard.hidden = !state.route || (state.route === "account" && !address) || state.formDone;
   recipientRow.hidden = state.route === "account";
   if (!relayUrl) return render(guideBox);
   const change = h("button", { type: "button", class: "secondary small", onclick: () => { state.question = emailAccounts() ? "address" : "pol"; setRoute(null); } }, t("mine.guide.change"));
@@ -171,7 +172,7 @@ function renderGuide() {
 // --- Recipient ---------------------------------------------------------------------------------------------
 
 /** Checks the recipient field; returns the problem (shown under the field) or null when mining can start. */
-async function checkRecipient() {
+async function checkRecipient({ offerSaved = true } = {}) {
   const value = recipientInput.value.trim();
   state.recipient = "";
   const problem = (message) => {
@@ -199,7 +200,7 @@ async function checkRecipient() {
   const notes = [usesRelay() ? t("mine.recipient.okRelay") : t("mine.recipient.ok")];
   if (isContract) notes.push(t("mine.recipient.contract"));
   render(recipientNote, notes.join(" "));
-  await offerSavedProof();
+  if (offerSaved) await offerSavedProof();
   return null;
 }
 
@@ -221,10 +222,13 @@ async function offerSavedProof() {
 
 async function startMining() {
   // Checked again on start: the field may have changed without losing focus, or the address claimed meanwhile.
-  const problem = await checkRecipient();
+  const problem = await checkRecipient({ offerSaved: false });
   if (problem) return notify(problem, "error");
+  state.proof = null;
   const aim = aimTarget(state.target, MINING_MARGIN_CLAIMS);
   render(resultBox);
+  countdown = createCountdown();
+  shownAt = -Infinity;
   state.miner = new Miner({ onProgress, onFound });
   state.miner.start({ seed: state.seed, month: state.month.month, recipient: state.recipient, target: aim, threads: Number(threadsSelect.value) });
   startButton.textContent = t("mine.stop");
@@ -241,15 +245,25 @@ function stopMining() {
   threadsSelect.disabled = false;
 }
 
+let proofStatus;
+let claimButton;
+let countdown = createCountdown();
+let shownAt = -Infinity;
+
 function onProgress({ hashrate, tried, expected }) {
+  // Every worker reports on its own, several times a second: the figures only need to change once a second.
+  const now = performance.now() / 1000;
+  if (now - shownAt < 1) return;
+  shownAt = now;
   const p = 1 - Math.exp(-tried / expected);
-  const remaining = Math.max(0, expected - tried) / Math.max(hashrate, 1);
+  const remaining = countdown(Math.max(0, expected - tried) / Math.max(hashrate, 1), now);
   render(progressBar, h("div", { class: "progress" }, h("div", { style: `width:${(p * 100).toFixed(1)}%` })));
   progressText.hidden = false;
   progressValues.rate.textContent = `${formatHashes(hashrate)}H/s`;
   progressValues.tried.textContent = formatHashes(tried);
   progressValues.chance.textContent = p.toLocaleString(lang, { style: "percent" });
-  progressValues.left.textContent = formatDuration(remaining);
+  // The search is random: past the average it can end at any moment, and "0 s" would look stuck.
+  progressValues.left.textContent = remaining > 0 ? formatDuration(remaining) : t("mine.progress.soon");
   const left = Number(state.month.end) - Date.now() / 1000;
   closesSoon.hidden = left >= (expected / Math.max(hashrate, 1)) * 2;
 }
@@ -280,24 +294,39 @@ async function onFound({ nonce, hash }) {
   stopMining();
   state.proof = { month: state.month.month, recipient: state.recipient, nonce, hash };
   saveProof(state.proof);
+  // Through the relay there is nothing to sign or decide, and every claim that gets in first makes the proof weaker.
+  if (usesRelay()) return claimThroughRelay();
   showProof(t("mine.found"));
-  // With an email account there is nothing to decide: the visitor just wants the token.
-  if (state.route === "account") claim();
+}
+
+function showForm() {
+  state.formDone = false;
+  renderGuide();
+}
+
+function hideForm() {
+  state.formDone = true;
+  renderGuide();
 }
 
 function showProof(title) {
   const p = state.proof;
   const label = usesRelay() ? t("mine.relayClaim") : account().address ? t("mine.claim") : t("mine.connectClaim");
-  const claimButton = h("button", { type: "button", onclick: claim }, label);
+  proofStatus = h("p", { class: "muted", hidden: true });
+  claimButton = h("button", { type: "button", onclick: claim }, label);
+  hideForm();
   render(
     resultBox,
     h(
       "div",
-      { class: "card" },
+      { class: "notice ok" },
       h("h3", {}, title),
       h("p", {}, t("mine.zeroBits", { bits: leadingZeroBits(p.hash) })),
       h("p", { class: "muted" }, t("mine.submitSoon")),
-      claimButton,
+      proofStatus,
+      h("div", { class: "row" },
+        claimButton,
+        h("button", { type: "button", class: "secondary", onclick: () => { state.proof = null; render(resultBox); showForm(); } }, t("mine.backToForm"))),
       h(
         "details",
         { style: "margin-top:12px" },
@@ -308,6 +337,11 @@ function showProof(title) {
     ),
   );
 }
+
+const showProofStatus = (text) => {
+  proofStatus.hidden = !text;
+  proofStatus.textContent = text;
+};
 
 function showClaimed(receipt, txHash) {
   const ev = receipt && findMintEvent(receipt);
@@ -333,8 +367,10 @@ function showClaimed(receipt, txHash) {
 
 async function claimThroughRelay() {
   const p = state.proof;
-  const status = h("p", {}, t("mine.relaySending"));
-  render(resultBox, h("div", { class: "notice" }, status));
+  const status = h("p", { class: "muted" }, t("mine.relaySending"));
+  render(resultBox, h("div", { class: "notice ok" }, h("h3", {}, t("mine.relayFound")), status));
+  // The message takes the form's place: nothing more to mine unless the relay fails. "Change" brings the form back.
+  hideForm();
   try {
     const { id } = await submitClaim(relayUrl, p);
     const txHash = await waitForClaim(relayUrl, id, { onSent: () => { status.textContent = t("mine.relaySent"); } });
@@ -348,6 +384,7 @@ async function claimThroughRelay() {
 }
 
 function relayFailed(code, p) {
+  showForm();
   if (code === "proof_outdated" || code === "insufficient_work") {
     forgetProof(p.month, p.recipient);
     state.proof = null;
@@ -381,18 +418,26 @@ async function claim() {
       await connect();
       return notify(t("mine.connectedClaimAgain"));
     }
+    claimButton.disabled = true;
+    showProofStatus(t("mine.walletConfirm"));
     const receipt = await write("claim", [BigInt(p.month), p.recipient, p.nonce], {
-      onSent: (hash) => notify(t("mine.txSent", { hash: hash.slice(0, 10) })),
+      onSent: (hash) => {
+        notify(t("mine.txSent", { hash: hash.slice(0, 10) }));
+        showProofStatus(t("mine.relaySent"));
+      },
     });
     forgetProof(p.month, p.recipient);
     showClaimed(receipt, receipt.transactionHash);
   } catch (err) {
     const message = errorMessage(err);
     notify(message, "error");
+    claimButton.disabled = false;
+    showProofStatus("");
     if (errorName(err) === "InsufficientWork") {
       forgetProof(p.month, p.recipient);
       state.proof = null;
       render(resultBox, h("div", { class: "notice warn" }, t("mine.outrun")));
+      showForm();
     }
   }
 }
@@ -402,10 +447,12 @@ async function claim() {
 startButton.addEventListener("click", () => (state.miner?.running ? stopMining() : startMining()));
 recipientInput.addEventListener("change", checkRecipient);
 onAccountChange((a) => {
+  if (state.proof && state.route === "wallet" && claimButton) claimButton.textContent = a.address ? t("mine.claim") : t("mine.connectClaim");
   if (state.route === "account") {
     // Signed in, out or as someone else: the proof and the field follow the account.
     if (state.miner?.running) stopMining();
     state.proof = null;
+    state.formDone = false;
     render(resultBox);
     recipientInput.value = a.address ?? "";
     renderGuide();
