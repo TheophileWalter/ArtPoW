@@ -1,5 +1,5 @@
-# No folder listings.
-Options -Indexes
+# No folder listings. MultiViews off: it answers /how/ with a 404 before the rules below can redirect it to /how.
+Options -Indexes -MultiViews
 
 RewriteEngine On
 

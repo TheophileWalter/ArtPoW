@@ -66,6 +66,9 @@ export async function connect() {
 /** Whether accounts by email are offered: they come with the AppKit modal. */
 export const emailAccounts = () => Boolean(modal);
 
+/** Whether the connected wallet is an email account, whose only interface is that window. */
+export const isEmailAccount = () => account().connector?.type === "AUTH";
+
 /** The wallet's own window, where an email account can also export its key. */
 export const openAccount = () => modal?.open({ view: "Account" });
 

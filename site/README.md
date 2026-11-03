@@ -69,7 +69,7 @@ server has to resolve them (see below), which a plain IPFS gateway does not do.
 - HTTPS only: plain HTTP is redirected (301), and browsers are told to use HTTPS directly for a year (HSTS). The rule
   tests the port and `X-Forwarded-Proto`, which works behind hosts that terminate TLS in front of Apache (OVH);
 - every token's metadata links to `<website>/token/<id>`: it is redirected to `gallery#token=<id>`;
-- folders are not listed;
+- folders are not listed, and `MultiViews` is off (it would turn `/how/` into a 404);
 - addresses have no `.html`: `/how` serves `how.html`, and `/how.html` is redirected (301) to `/how`, as is `/how/`.
 
 Other servers need the same rules.

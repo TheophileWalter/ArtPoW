@@ -9,7 +9,7 @@ import { chain, chainId, contractAddress, sourceUrl } from "./config.js";
 import { publicClient, read } from "./contract.js";
 import { LANGUAGES, formatNumber, lang, setLanguage, t, translateDocument } from "./i18n.js";
 import { addressUrl, errorMessage, shortAddress } from "./util.js";
-import { account, connect, disconnect, onAccountChange } from "./wallet.js";
+import { account, connect, disconnect, isEmailAccount, onAccountChange, openAccount } from "./wallet.js";
 
 /** Creates an element: h("a", { href: "#", class: "x", onclick }, "text", child). */
 export function h(tag, attrs = {}, ...children) {
@@ -175,6 +175,8 @@ function walletDialog() {
       { class: "actions" },
       h("a", { class: "button secondary", href: addressUrl(a.address), target: "_blank", rel: "noopener" }, t("wallet.explorer")),
       contractAddress !== zeroAddress ? h("a", { class: "button secondary", href: "gallery" }, t("wallet.myTokens")) : null,
+      // Closed first: this modal dialog would otherwise stay on top of Reown's window.
+      isEmailAccount() ? h("button", { type: "button", class: "secondary", onclick: () => { close(); openAccount(); } }, t("wallet.manage")) : null,
       disconnectButton,
     ),
   );

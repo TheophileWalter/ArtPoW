@@ -33,6 +33,7 @@ export default {
   "wallet.unavailable": "no disponible",
   "wallet.explorer": "Explorador ↗",
   "wallet.myTokens": "Mis tokens",
+  "wallet.manage": "Abrir mi cartera",
   "wallet.noBrowserWallet": "No se encontró ninguna wallet en el navegador. Instala una (MetaMask, Rabby…) para continuar.",
   "wallet.connectThenRetry": "Conecta tu wallet y vuelve a intentarlo.",
   "footer.tagline": "gratis · prueba de trabajo · sin royalties · MIT",
