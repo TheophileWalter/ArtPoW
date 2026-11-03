@@ -8,7 +8,7 @@ administration page. No server: the build is a folder of HTML, CSS and JavaScrip
 |---|---|
 | `index.html` | Presentation and the current edition |
 | `how.html` | The system explained for everyone: a hashing demo, a difficulty calculator and month scenarios (charts computed with the contract's rule, `src/lib/explainer.js`) |
-| `mine.html` | Mines a proof in the browser (WebAssembly, several Web Workers), then claims the token |
+| `mine.html` | Guides beginners with a few questions, mines a proof in the browser (WebAssembly, several Web Workers), then claims the token from the wallet or through the relay. Without an address, an email account creates one through Reown |
 | `gallery.html` | Every edition, a token viewer (`/gallery#token=12`) and the tokens of the connected wallet |
 | `stats.html` | Statistics read live from the contract and its events: totals, averages, difficulty record, rarest hash, holders, tokens per month, rarity distribution, and for each month the tokens minted against the schedule and the difficulty over time (claim times from the `Claimed` events, closed months cached in the browser) |
 | `whitepaper.html` | The whitepaper as HTML (text, MathML formulas, SVG figures), generated from the LaTeX source, and the PDF to download |
@@ -42,6 +42,9 @@ Copy `.env.example` to `.env`:
   With it, the connection modal offers mobile wallets through a QR code as well as browser wallets; without it,
   only browser wallets (MetaMask, Rabby…) are available;
 - `VITE_IPFS_GATEWAY`, `VITE_ARWEAVE_GATEWAY`: gateways used to display `ipfs://` and `ar://` images;
+- `VITE_RELAY_URL` (optional): relay that sends claims and pays their gas. By default the project's relay on Polygon
+  and none elsewhere; without one the mining page only offers the wallet. The relay only accepts `https://artpow.org`
+  as an origin, so testing it from another address needs a local relay;
 - `VITE_SOURCE_URL`: public repository, linked from the footer (default: https://github.com/TheophileWalter/ArtPoW).
 
 ## Build

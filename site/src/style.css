@@ -460,6 +460,13 @@ button.small, .button.small { padding: 7px 10px; font-size: 0.8rem; }
 
 /* Statistics */
 .stats[hidden] { display: none; }
+.card[hidden], div[hidden] { display: none; }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin-top: 12px; }
+button.choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; height: 100%; padding: 16px; text-align: left; white-space: normal; font-weight: 400; }
+button.choice strong { font-size: 1rem; }
+button.choice span { font-size: 0.88rem; }
+.guide-summary { align-items: center; }
+.guide:not(:empty) { margin: 24px 0; }
 .stats-4 { grid-template-columns: repeat(4, 1fr); }
 @media (max-width: 600px) { .stats-4 { grid-template-columns: repeat(2, 1fr); } }
 .stats-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); }

@@ -1,17 +1,31 @@
-// Mining page: mine a proof in the browser, then claim the token from the connected wallet.
+// Mining page: a few questions pick the right path, then mine a proof in the browser and claim the token, from the
+// connected wallet or through the relay.
 import { encodeAbiParameters, getAddress, isAddress, keccak256 } from "viem";
-import { MINING_MARGIN_CLAIMS, chainId, contractAddress } from "../lib/config.js";
+import { MINING_MARGIN_CLAIMS, chainId, contractAddress, relayUrl } from "../lib/config.js";
 import { aimTarget, expectedHashes, findMintEvent, getMonth, leadingZeroBits, publicClient, read } from "../lib/contract.js";
 import { formatNumber, lang, t, tn } from "../lib/i18n.js";
 import { h, initLayout, notify, render } from "../lib/layout.js";
 import { Miner } from "../lib/miner.js";
+import { submitClaim, waitForClaim } from "../lib/relay.js";
 import { errorMessage, errorName, formatDate, formatDuration, formatHashes, resolveUri, shortAddress, txUrl } from "../lib/util.js";
-import { account, connect, onAccountChange, write } from "../lib/wallet.js";
+import { account, connect, emailAccounts, onAccountChange, openAccount, write } from "../lib/wallet.js";
 
 initLayout("mine");
 const app = document.getElementById("app");
 
-const state = { month: null, seed: null, target: 0n, recipient: "", proof: null, miner: null, poll: null };
+// Route: "wallet" sends the claim from the visitor's wallet, "relay" lets the relay send it for any address, "account"
+// does the same for the address of an email account.
+const ROUTES = ["wallet", "relay", "account"];
+const ROUTE_KEY = "artpow-mine-route";
+const savedRoute = () => { try { return localStorage.getItem(ROUTE_KEY); } catch { return null; } };
+const firstRoute = () => {
+  if (!relayUrl) return "wallet";
+  const saved = savedRoute();
+  return ROUTES.includes(saved) && (saved !== "account" || emailAccounts()) ? saved : null;
+};
+
+const state = { month: null, seed: null, target: 0n, recipient: "", proof: null, miner: null, poll: null, route: firstRoute(), question: emailAccounts() ? "address" : "pol" };
+const usesRelay = () => state.route === "relay" || state.route === "account";
 
 const storageKey = (month, recipient) => `artpow-proof:${chainId}:${contractAddress}:${month}:${recipient.toLowerCase()}`;
 const saveProof = (p) => { try { localStorage.setItem(storageKey(p.month, p.recipient), p.nonce.toString()); } catch {} };
@@ -26,7 +40,8 @@ const powHash = (seed, month, recipient, nonce) =>
 
 // --- UI elements -------------------------------------------------------------------------------------------
 
-const monthBox = h("div", {});
+const monthBox = h("div", { style: "margin-top:24px" });
+const guideBox = h("div", { class: "guide" });
 const recipientInput = h("input", { placeholder: t("mine.recipientPlaceholder"), spellcheck: "false" });
 const recipientNote = h("p", { class: "muted" });
 const threadsSelect = h("select", { style: "max-width:120px" });
@@ -41,6 +56,8 @@ const progressText = h(
 );
 const closesSoon = h("p", { class: "muted", hidden: true }, t("mine.closesSoon"));
 const resultBox = h("div", {});
+const recipientRow = h("div", {});
+const minerCard = h("div", { class: "card", style: "margin-top:24px" });
 
 for (let i = 1; i <= Math.max(1, navigator.hardwareConcurrency || 4); i++) {
   threadsSelect.append(h("option", { value: i, selected: i === Miner.defaultThreads() ? true : null }, tn("mine.threads", i)));
@@ -90,6 +107,67 @@ async function loadMonth() {
   startButton.disabled = false;
 }
 
+// --- Guide -------------------------------------------------------------------------------------------------
+
+const choice = (title, text, onclick) =>
+  h("button", { type: "button", class: "secondary choice", onclick }, h("strong", {}, title), h("span", { class: "muted" }, text));
+
+function setRoute(route) {
+  if (state.miner?.running) stopMining();
+  state.route = route;
+  state.proof = null;
+  render(resultBox);
+  try {
+    if (route) localStorage.setItem(ROUTE_KEY, route);
+    else localStorage.removeItem(ROUTE_KEY);
+  } catch {}
+  if (route === "account") recipientInput.value = account().address ?? "";
+  renderGuide();
+  if (route) checkRecipient();
+}
+
+function renderGuide() {
+  const address = account().address;
+  minerCard.hidden = !state.route || (state.route === "account" && !address);
+  recipientRow.hidden = state.route === "account";
+  if (!relayUrl) return render(guideBox);
+  const change = h("button", { type: "button", class: "secondary small", onclick: () => { state.question = emailAccounts() ? "address" : "pol"; setRoute(null); } }, t("mine.guide.change"));
+  const card = (...content) => h("div", { class: "card" }, ...content);
+
+  if (!state.route && state.question === "address") {
+    return render(guideBox, card(
+      h("h3", {}, t("mine.guide.address")),
+      h("div", { class: "choices" },
+        choice(t("mine.guide.hasAddress"), t("mine.guide.hasAddressText"), () => { state.question = "pol"; renderGuide(); }),
+        choice(t("mine.guide.noAddress"), t("mine.guide.noAddressText"), () => setRoute("account"))),
+    ));
+  }
+  if (!state.route) {
+    return render(guideBox, card(
+      h("h3", {}, t("mine.guide.pol")),
+      h("div", { class: "choices" },
+        choice(t("mine.guide.ownGas"), t("mine.guide.ownGasText"), () => setRoute("wallet")),
+        choice(t("mine.guide.relayGas"), t("mine.guide.relayGasText"), () => setRoute("relay"))),
+      emailAccounts() ? h("div", { class: "row", style: "margin-top:12px" }, change) : null,
+    ));
+  }
+  if (state.route === "account" && !address) {
+    return render(guideBox, card(
+      h("h3", {}, t("mine.guide.login")),
+      h("p", {}, t("mine.guide.loginText")),
+      h("p", { class: "muted" }, t("mine.guide.loginPrivacy")),
+      h("div", { class: "row" },
+        h("button", { type: "button", onclick: () => connect().catch((err) => notify(errorMessage(err), "error")) }, t("mine.guide.loginButton")),
+        change),
+    ));
+  }
+  return render(guideBox, h("div", { class: "row guide-summary" },
+    h("span", { class: "muted" }, state.route === "wallet" ? t("mine.guide.routeWallet") : state.route === "relay" ? t("mine.guide.routeRelay") : t("mine.guide.routeAccount", { address: shortAddress(address) })),
+    state.route === "account" ? h("button", { type: "button", class: "secondary small", onclick: openAccount }, t("mine.guide.manage")) : null,
+    change,
+  ));
+}
+
 // --- Recipient ---------------------------------------------------------------------------------------------
 
 /** Checks the recipient field; returns the problem (shown under the field) or null when mining can start. */
@@ -113,8 +191,13 @@ async function checkRecipient() {
     return problem(t("mine.recipient.claimed", { address: shortAddress(recipient), label: state.month.content.label }));
   }
   state.recipient = recipient;
-  const notes = [t("mine.recipient.ok")];
-  if (code && code !== "0x") notes.push(t("mine.recipient.contract"));
+  const isContract = code && code !== "0x";
+  if (isContract && usesRelay()) {
+    state.recipient = "";
+    return problem(t("mine.recipient.contractRelay"));
+  }
+  const notes = [usesRelay() ? t("mine.recipient.okRelay") : t("mine.recipient.ok")];
+  if (isContract) notes.push(t("mine.recipient.contract"));
   render(recipientNote, notes.join(" "));
   await offerSavedProof();
   return null;
@@ -198,11 +281,14 @@ async function onFound({ nonce, hash }) {
   state.proof = { month: state.month.month, recipient: state.recipient, nonce, hash };
   saveProof(state.proof);
   showProof(t("mine.found"));
+  // With an email account there is nothing to decide: the visitor just wants the token.
+  if (state.route === "account") claim();
 }
 
 function showProof(title) {
   const p = state.proof;
-  const claimButton = h("button", { type: "button", onclick: claim }, account().address ? t("mine.claim") : t("mine.connectClaim"));
+  const label = usesRelay() ? t("mine.relayClaim") : account().address ? t("mine.claim") : t("mine.connectClaim");
+  const claimButton = h("button", { type: "button", onclick: claim }, label);
   render(
     resultBox,
     h(
@@ -223,7 +309,72 @@ function showProof(title) {
   );
 }
 
+function showClaimed(receipt, txHash) {
+  const ev = receipt && findMintEvent(receipt);
+  const id = ev ? Number(ev.args.tokenId) : null;
+  render(
+    resultBox,
+    h(
+      "div",
+      { class: "notice ok" },
+      // The NFT's name carries its edition number; the token id also counts the artist and team proofs.
+      h("h3", {}, ev ? t("mine.claimedTitle", { name: `${state.month.content.label} • #${ev.args.number}` }) : t("mine.claimedShort")),
+      id ? h("p", { class: "muted" }, t("mine.tokenId", { id })) : null,
+      usesRelay() ? h("p", { class: "muted" }, t("mine.relayAfter")) : null,
+      h("div", { class: "row" },
+        id ? h("a", { class: "button", href: `gallery#token=${id}` }, t("mine.seeGallery")) : null,
+        txUrl(txHash) ? h("a", { class: "button secondary", href: txUrl(txHash), target: "_blank", rel: "noopener" }, t("mine.transaction")) : null,
+      ),
+    ),
+  );
+  state.proof = null;
+  loadMonth();
+}
+
+async function claimThroughRelay() {
+  const p = state.proof;
+  const status = h("p", {}, t("mine.relaySending"));
+  render(resultBox, h("div", { class: "notice" }, status));
+  try {
+    const { id } = await submitClaim(relayUrl, p);
+    const txHash = await waitForClaim(relayUrl, id, { onSent: () => { status.textContent = t("mine.relaySent"); } });
+    forgetProof(p.month, p.recipient);
+    // The token is minted whatever happens here: a lagging public node only costs the edition number on screen.
+    const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash, timeout: 30_000 }).catch(() => null);
+    showClaimed(receipt, txHash);
+  } catch (err) {
+    relayFailed(err.code ?? "relay_unavailable", p);
+  }
+}
+
+function relayFailed(code, p) {
+  if (code === "proof_outdated" || code === "insufficient_work") {
+    forgetProof(p.month, p.recipient);
+    state.proof = null;
+    return render(resultBox, h("div", { class: "notice warn" }, t("mine.outrun")));
+  }
+  if (code === "already_claimed") {
+    forgetProof(p.month, p.recipient);
+    state.proof = null;
+    return render(resultBox, h("div", { class: "notice ok" }, t("mine.receivedMeanwhile")));
+  }
+  if (code === "month_not_active") {
+    state.proof = null;
+    return render(resultBox, h("div", { class: "notice warn" }, t("mine.recipient.noMonth")));
+  }
+  if (code === "contract_recipient") return render(resultBox, h("div", { class: "notice warn" }, t("mine.recipient.contractRelay")));
+  // Anything else is on the relay's side (no funds, gas price, outage): the proof stays valid and saved.
+  console.warn("Relay failure:", code);
+  render(resultBox, h("div", { class: "notice warn" },
+    h("p", {}, t("mine.relayFailed")),
+    h("div", { class: "row" },
+      h("button", { type: "button", onclick: claimThroughRelay }, t("mine.relayRetry")),
+      state.route === "relay" ? h("button", { type: "button", class: "secondary", onclick: () => setRoute("wallet") }, t("mine.relayUseWallet")) : null),
+  ));
+}
+
 async function claim() {
+  if (usesRelay()) return claimThroughRelay();
   const p = state.proof;
   try {
     if (!account().address) {
@@ -233,25 +384,8 @@ async function claim() {
     const receipt = await write("claim", [BigInt(p.month), p.recipient, p.nonce], {
       onSent: (hash) => notify(t("mine.txSent", { hash: hash.slice(0, 10) })),
     });
-    const ev = findMintEvent(receipt);
     forgetProof(p.month, p.recipient);
-    const id = ev ? Number(ev.args.tokenId) : null;
-    render(
-      resultBox,
-      h(
-        "div",
-        { class: "notice ok" },
-        // The NFT's name carries its edition number; the token id also counts the artist and team proofs.
-        h("h3", {}, ev ? t("mine.claimedTitle", { name: `${state.month.content.label} • #${ev.args.number}` }) : t("mine.claimedShort")),
-        id ? h("p", { class: "muted" }, t("mine.tokenId", { id })) : null,
-        h("div", { class: "row" },
-          id ? h("a", { class: "button", href: `gallery#token=${id}` }, t("mine.seeGallery")) : null,
-          txUrl(receipt.transactionHash) ? h("a", { class: "button secondary", href: txUrl(receipt.transactionHash), target: "_blank", rel: "noopener" }, t("mine.transaction")) : null,
-        ),
-      ),
-    );
-    state.proof = null;
-    loadMonth();
+    showClaimed(receipt, receipt.transactionHash);
   } catch (err) {
     const message = errorMessage(err);
     notify(message, "error");
@@ -268,6 +402,16 @@ async function claim() {
 startButton.addEventListener("click", () => (state.miner?.running ? stopMining() : startMining()));
 recipientInput.addEventListener("change", checkRecipient);
 onAccountChange((a) => {
+  if (state.route === "account") {
+    // Signed in, out or as someone else: the proof and the field follow the account.
+    if (state.miner?.running) stopMining();
+    state.proof = null;
+    render(resultBox);
+    recipientInput.value = a.address ?? "";
+    renderGuide();
+    if (a.address) checkRecipient();
+    return;
+  }
   if (a.address && !recipientInput.value) {
     recipientInput.value = a.address;
     checkRecipient();
@@ -275,36 +419,43 @@ onAccountChange((a) => {
 });
 
 render(
+  recipientRow,
+  h("label", {}, t("mine.recipient")),
+  h("div", { class: "row" }, h("div", { style: "flex:1 1 320px" }, recipientInput),
+    h("button", { type: "button", class: "secondary", onclick: async () => {
+      if (!account().address) return connect();
+      recipientInput.value = account().address;
+      checkRecipient();
+    } }, t("mine.useWallet"))),
+);
+render(
+  minerCard,
+  h("h3", {}, t("mine.miner")),
+  recipientRow,
+  recipientNote,
+  h("div", { class: "row", style: "margin-top:8px" }, threadsSelect, startButton),
+  progressBar,
+  progressText,
+  closesSoon,
+);
+render(
   app,
   h("div", { class: "kicker", style: "margin-top:0" }, t("mine.kicker")),
   h("h1", {}, t("mine.title")),
   h("p", { class: "lead" }, t("mine.lead")),
-  monthBox,
-  h(
-    "div",
-    { class: "card", style: "margin-top:24px" },
-    h("h3", {}, t("mine.miner")),
-    h("label", {}, t("mine.recipient")),
-    h("div", { class: "row" }, h("div", { style: "flex:1 1 320px" }, recipientInput),
-      h("button", { type: "button", class: "secondary", onclick: async () => {
-        if (!account().address) return connect();
-        recipientInput.value = account().address;
-        checkRecipient();
-      } }, t("mine.useWallet"))),
-    recipientNote,
-    h("div", { class: "row", style: "margin-top:8px" }, threadsSelect, startButton),
-    progressBar,
-    progressText,
-    closesSoon,
-  ),
+  // What to do comes first: nobody should have to scroll past the artwork to find where to start.
+  guideBox,
+  minerCard,
   resultBox,
+  monthBox,
 );
+renderGuide();
 
 (async () => {
   try {
     await loadMonth();
     if (account().address) recipientInput.value = account().address;
-    await checkRecipient();
+    if (state.route) await checkRecipient();
   } catch (err) {
     render(monthBox, h("div", { class: "notice warn" }, t("common.cannotRead", { error: errorMessage(err) })));
   }

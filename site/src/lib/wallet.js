@@ -46,7 +46,9 @@ if (walletConnectProjectId) {
       url: location.origin,
       icons: [],
     },
-    features: { analytics: false, email: false, socials: false, swaps: false, onramp: false },
+    // Email accounts give beginners an address; a plain one, because the relay refuses contract recipients.
+    defaultAccountTypes: { eip155: "eoa" },
+    features: { analytics: false, email: true, socials: false, swaps: false, onramp: false },
   });
 } else {
   config = createConfig({ chains: [chain], connectors: [injected()], transports: { [chainId]: http(rpcUrl) } });
@@ -60,6 +62,12 @@ export async function connect() {
   if (!window.ethereum) throw new Error(t("wallet.noBrowserWallet"));
   return wagmiConnect(config, { connector: injected(), chainId });
 }
+
+/** Whether accounts by email are offered: they come with the AppKit modal. */
+export const emailAccounts = () => Boolean(modal);
+
+/** The wallet's own window, where an email account can also export its key. */
+export const openAccount = () => modal?.open({ view: "Account" });
 
 export async function disconnect() {
   return wagmiDisconnect(config);

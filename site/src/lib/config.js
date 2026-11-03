@@ -22,6 +22,9 @@ export const walletConnectProjectId = read("VITE_WALLETCONNECT_PROJECT_ID");
 export const ipfsGateway = read("VITE_IPFS_GATEWAY", "https://ipfs.io/ipfs/");
 export const arweaveGateway = read("VITE_ARWEAVE_GATEWAY", "https://arweave.net/");
 export const explorer = chain.blockExplorers?.default?.url ?? "";
+/** ArtPoW relay, which sends claims and pays their gas. Without one, the mining page only offers the wallet. */
+const DEFAULT_RELAY = { 137: "https://fjm7k26s3i.execute-api.eu-west-3.amazonaws.com" };
+export const relayUrl = read("VITE_RELAY_URL") || DEFAULT_RELAY[chainId] || "";
 /** Public repository of the project, linked from the footer. */
 export const sourceUrl = read("VITE_SOURCE_URL", "https://github.com/TheophileWalter/ArtPoW");
 
