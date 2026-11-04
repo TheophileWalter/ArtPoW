@@ -8,7 +8,8 @@ import { h, initLayout, notify, render } from "../lib/layout.js";
 import { Miner } from "../lib/miner.js";
 import { submitClaim, waitForClaim } from "../lib/relay.js";
 import { createCountdown, errorMessage, errorName, formatDate, formatDuration, formatHashes, resolveUri, shortAddress, txUrl } from "../lib/util.js";
-import { account, connect, emailAccounts, onAccountChange, openAccount, write } from "../lib/wallet.js";
+import { hasConsent, setConsent } from "../lib/consent.js";
+import { account, connect, onAccountChange, openAccount, walletServicesExist, write } from "../lib/wallet.js";
 
 initLayout("mine");
 const app = document.getElementById("app");
@@ -21,10 +22,10 @@ const savedRoute = () => { try { return localStorage.getItem(ROUTE_KEY); } catch
 const firstRoute = () => {
   if (!relayUrl) return "wallet";
   const saved = savedRoute();
-  return ROUTES.includes(saved) && (saved !== "account" || emailAccounts()) ? saved : null;
+  return ROUTES.includes(saved) && (saved !== "account" || walletServicesExist()) ? saved : null;
 };
 
-const state = { month: null, seed: null, target: 0n, recipient: "", proof: null, miner: null, poll: null, route: firstRoute(), question: emailAccounts() ? "address" : "pol", formDone: false };
+const state = { month: null, seed: null, target: 0n, recipient: "", proof: null, miner: null, poll: null, route: firstRoute(), question: walletServicesExist() ? "address" : "pol", formDone: false };
 const usesRelay = () => state.route === "relay" || state.route === "account";
 
 const storageKey = (month, recipient) => `artpow-proof:${chainId}:${contractAddress}:${month}:${recipient.toLowerCase()}`;
@@ -132,10 +133,11 @@ function renderGuide() {
   minerCard.hidden = !state.route || (state.route === "account" && !address) || state.formDone;
   recipientRow.hidden = state.route === "account";
   if (!relayUrl) return render(guideBox);
-  const change = h("button", { type: "button", class: "secondary small", onclick: () => { state.question = emailAccounts() ? "address" : "pol"; setRoute(null); } }, t("mine.guide.change"));
+  const change = h("button", { type: "button", class: "secondary small", onclick: () => { state.question = walletServicesExist() ? "address" : "pol"; setRoute(null); } }, t("mine.guide.change"));
   const card = (...content) => h("div", { class: "card" }, ...content);
 
-  if (!state.route && state.question === "address") {
+  // A connected visitor has an address: the first question has no point.
+  if (!state.route && state.question === "address" && !address) {
     return render(guideBox, card(
       h("h3", {}, t("mine.guide.address")),
       h("div", { class: "choices" },
@@ -149,7 +151,7 @@ function renderGuide() {
       h("div", { class: "choices" },
         choice(t("mine.guide.ownGas"), t("mine.guide.ownGasText"), () => setRoute("wallet")),
         choice(t("mine.guide.relayGas"), t("mine.guide.relayGasText"), () => setRoute("relay"))),
-      emailAccounts() ? h("div", { class: "row", style: "margin-top:12px" }, change) : null,
+      walletServicesExist() && !address ? h("div", { class: "row", style: "margin-top:12px" }, change) : null,
     ));
   }
   if (state.route === "account" && !address) {
@@ -158,7 +160,9 @@ function renderGuide() {
       h("p", {}, t("mine.guide.loginText")),
       h("p", { class: "muted" }, t("mine.guide.loginPrivacy")),
       h("div", { class: "row" },
-        h("button", { type: "button", onclick: () => connect().catch((err) => notify(errorMessage(err), "error")) }, t("mine.guide.loginButton")),
+        hasConsent()
+          ? h("button", { type: "button", onclick: () => connect().catch((err) => notify(errorMessage(err), "error")) }, t("mine.guide.loginButton"))
+          : h("button", { type: "button", onclick: () => setConsent("yes", { openWallet: true }) }, t("mine.guide.loginConsent")),
         change),
     ));
   }
@@ -447,6 +451,7 @@ async function claim() {
 startButton.addEventListener("click", () => (state.miner?.running ? stopMining() : startMining()));
 recipientInput.addEventListener("change", checkRecipient);
 onAccountChange((a) => {
+  if (!state.route) renderGuide();
   if (state.proof && state.route === "wallet" && claimButton) claimButton.textContent = a.address ? t("mine.claim") : t("mine.connectClaim");
   if (state.route === "account") {
     // Signed in, out or as someone else: the proof and the field follow the account.

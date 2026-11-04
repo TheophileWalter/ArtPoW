@@ -69,7 +69,7 @@ and the other limits of the design.
 
 Months are scheduled by administrators, in order and without gaps in their numbering. Each month has a start, an
 end and a content: a label (for example ``November 2026''), the artist's name, an optional address receiving the
-artist proof, the URI of a square artwork and an optional animation URI. The contract enforces that a month:
+artist proof, the URI of an artwork and an optional animation URI. The contract enforces that a month:
 \begin{itemize}
   \item lasts between 25 and 35 days, which covers calendar months and rejects typing errors that would become
         final once the month starts;
@@ -207,8 +207,8 @@ claim on behalf of any address, this keeps a third party from blocking a proof b
 artist first.
 
 The collection charges no royalty. Royalties are optional on most marketplaces and would amount to a fee on the
-work of artists who do not receive it; the proofs give the artist and the team a share that is valuable only if
-the collection is.
+work of artists who do not receive it; the proofs give the artist and the team a place in the collection, alongside
+its collectors.
 
 \section{Metadata}
 
@@ -360,7 +360,7 @@ itself without a cap. Proofs of work are bound to their recipients, so they cann
 anyone; a chain of accumulators keeps each month's puzzle unknown until the previous month ends; a difficulty that
 follows a linear schedule after every claim keeps a month close to one thousand tokens, an attacker's lead growing
 only with the logarithm of its power. Metadata live on-chain, administrators cannot touch the holders' tokens, and
-the contract can be stopped but never changed. The design does not decide who wins the tokens when machines
+the contract can be stopped but never changed. The design does not decide who receives the tokens when machines
 compete with people; it only makes the cost of each token explicit and the rules the same for everyone.
 
 \section*{References}

@@ -123,7 +123,7 @@ Documents:
     calendar month;
   - `artist`: name of the month's guest artist (a different artist every month);
   - `artistAddress`: address receiving the artist proof (zero if the artist does not want one);
-  - `image`: URI of the artwork, **square ratio** (checked before scheduling, not by the contract);
+  - `image`: URI of the artwork; square is recommended for a consistent collection, not required;
   - `animationUrl`: optional (video, 3D, HTML); `image` then serves as the preview.
 - The `MonthScheduled` event only carries the month and its dates (the content is read through `getMonth`), so that
   the bytes of an on-chain image are not paid twice.
@@ -239,7 +239,7 @@ S(t)         = 1000 × (t − start) / (end − start)
 - **Chosen** (a different artist every month, from pixel art to photography): `image = ipfs://<CID>`, pinned by two
   services (or one service plus our own node), with a **systematic copy on Arweave** so that the same CID can be
   pinned again. Very light months: on-chain image possible case by case.
-- Guidelines for artists: square, from 1024×1024 to 4096×4096; PNG, JPEG, WebP or animated GIF; 20 MB maximum;
+- Guidelines for artists: square recommended, from 1024×1024 to 4096×4096; PNG, JPEG, WebP or animated GIF; 20 MB maximum;
   pixel art at native resolution plus an upscaled version without smoothing; video, 3D or HTML through
   `animation_url` with a preview image.
 

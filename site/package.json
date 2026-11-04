@@ -24,6 +24,7 @@
     "@fontsource/space-grotesk": "5.3.0",
     "@reown/appkit": "1.8.24",
     "@reown/appkit-adapter-wagmi": "1.8.24",
+    "@reown/appkit-controllers": "1.8.24",
     "@wagmi/core": "3.6.7",
     "viem": "2.57.13"
   },

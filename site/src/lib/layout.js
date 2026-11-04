@@ -9,7 +9,8 @@ import { chain, chainId, contractAddress, sourceUrl } from "./config.js";
 import { publicClient, read } from "./contract.js";
 import { LANGUAGES, formatNumber, lang, setLanguage, t, translateDocument } from "./i18n.js";
 import { addressUrl, errorMessage, shortAddress } from "./util.js";
-import { account, connect, disconnect, isEmailAccount, onAccountChange, openAccount } from "./wallet.js";
+import { hasConsent, onConsentNeeded, setConsent } from "./consent.js";
+import { account, connect, disconnect, isEmailAccount, onAccountChange, openAccount, walletServicesExist } from "./wallet.js";
 
 /** Creates an element: h("a", { href: "#", class: "x", onclick }, "text", child). */
 export function h(tag, attrs = {}, ...children) {
@@ -36,7 +37,7 @@ const PAGES = [
   ["stats", "nav.stats"],
   ["whitepaper", "nav.whitepaper"],
 ];
-const TITLES = { "./": "title.home", how: "title.how", mine: "title.mine", gallery: "title.gallery", stats: "title.stats", whitepaper: "title.whitepaper" };
+const TITLES = { "./": "title.home", how: "title.how", mine: "title.mine", gallery: "title.gallery", stats: "title.stats", whitepaper: "title.whitepaper", legal: "title.legal", privacy: "title.privacy", contact: "title.contact", artists: "title.artists" };
 
 export function initLayout(active) {
   if (TITLES[active]) document.title = t(TITLES[active]);
@@ -119,12 +120,45 @@ export function initLayout(active) {
         h("a", { href: addressUrl(contractAddress), target: "_blank", rel: "noopener" }, t("footer.contract", { address: shortAddress(contractAddress) })),
         sourceUrl ? h("a", { href: sourceUrl, target: "_blank", rel: "noopener" }, t("footer.source")) : null,
         h("a", { href: "whitepaper" }, t("footer.whitepaper")),
+        h("a", { href: "artists" }, t("footer.artists")),
+        h("a", { href: "contact" }, t("footer.contact")),
+        h("a", { href: "legal" }, t("footer.legal")),
+        h("a", { href: "privacy" }, t("footer.privacy")),
+        walletServicesExist() ? h("button", { type: "button", class: "link", onclick: () => consentDialog() }, t("footer.services")) : null,
       ),
     ),
   );
   document.body.prepend(header);
   document.body.append(footer);
   document.body.append(h("div", { id: "toasts", class: "toasts", "aria-live": "polite" }));
+  onConsentNeeded(consentDialog);
+}
+
+/** The choice about wallet services, shown on asking to connect. Both answers carry the same weight. */
+function consentDialog() {
+  document.getElementById("consent")?.remove();
+  const close = () => dialog.close();
+  const refuse = () => {
+    // Nothing was loaded unless the visitor had accepted before, and a browser wallet can still connect right away.
+    const wasLoaded = hasConsent();
+    setConsent("no", { reload: wasLoaded });
+    close();
+    if (!wasLoaded) connect().catch((err) => notify(errorMessage(err), "error"));
+  };
+  const dialog = h(
+    "dialog",
+    { id: "consent", class: "wallet-dialog", "aria-label": t("consent.title"), tabindex: "-1" },
+    h("div", { class: "dialog-head" }, h("h3", {}, t("consent.title")), h("button", { type: "button", class: "close", "aria-label": t("wallet.close"), onclick: close }, "✕")),
+    h("p", {}, t("consent.text"), " ", h("a", { href: "privacy" }, t("consent.more"))),
+    h("div", { class: "actions" },
+      h("button", { type: "button", class: "secondary", onclick: () => setConsent("yes", { openWallet: true }) }, t("consent.accept")),
+      h("button", { type: "button", class: "secondary", onclick: refuse }, t("consent.refuse"))),
+  );
+  dialog.addEventListener("click", (e) => e.target === dialog && close());
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+  dialog.focus();
 }
 
 /** Connected wallet: address, network, balances and the disconnect button. */

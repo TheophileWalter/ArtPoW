@@ -1,0 +1,28 @@
+# AI search and assistants are welcome: they show visitors the pages and link back to them.
+User-agent: *
+Allow: /
+
+# Rights reserved against text and data mining for AI training (Directive (EU) 2019/790, article 4).
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /

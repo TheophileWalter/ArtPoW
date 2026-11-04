@@ -17,67 +17,67 @@ const section = (title, ...children) => h("section", { class: "how-section" }, h
 const stat = (value, label) => h("div", { class: "stat" }, h("div", { class: "value" }, value), h("div", { class: "label" }, label));
 const p = (key) => h("p", {}, t(key));
 
-// --- 1. Lottery demo ------------------------------------------------------------------------------------------
+// --- 1. Search demo ------------------------------------------------------------------------------------------
 
-function lotteryDemo() {
-  const ZEROS = 3; // 12 bits: one ticket in 4,096
+function searchDemo() {
+  const ZEROS = 3; // 12 bits: one try in 4,096
   const BATCH = 2000;
   let tried = 0;
-  let winners = 0;
+  let found = 0;
   let last = null;
   const triedEl = h("div", { class: "value" }, "0");
-  const winnersEl = h("div", { class: "value" }, "0");
+  const foundEl = h("div", { class: "value" }, "0");
   const ratioEl = h("div", { class: "value" }, "-");
-  const tickets = h("div", { class: "tickets", "aria-live": "polite" });
-  const lastEl = h("p", { class: "mono muted" }, `${t("how.lottery.lastWinner")}: ${t("how.lottery.none")}`);
+  const tries = h("div", { class: "tries", "aria-live": "polite" });
+  const lastEl = h("p", { class: "mono muted" }, `${t("how.search.lastSolution")}: ${t("how.search.none")}`);
   const seed = crypto.getRandomValues(new Uint8Array(16));
 
-  const ticket = (hash, win) => {
+  const attempt = (hash, win) => {
     const hex = hash.slice(2);
     const zeros = hex.match(/^0*/)[0].length;
-    return h("div", { class: win ? "ticket win" : "ticket" }, h("span", { class: "zeros" }, hex.slice(0, zeros)), hex.slice(zeros, 40), "…");
+    return h("div", { class: win ? "try win" : "try" }, h("span", { class: "zeros" }, hex.slice(0, zeros)), hex.slice(zeros, 40), "…");
   };
-  const print = () => {
+  const search = () => {
     const shown = [];
     for (let i = 0; i < BATCH; i++) {
       tried++;
       const hash = keccak256(toHex(new Uint8Array([...seed, ...new Uint8Array(new Float64Array([tried]).buffer)])));
       const win = hash.startsWith("0x" + "0".repeat(ZEROS));
       if (win) {
-        winners++;
+        found++;
         last = hash;
       }
-      if (win || i >= BATCH - 6) shown.push(ticket(hash, win));
+      if (win || i >= BATCH - 6) shown.push(attempt(hash, win));
     }
     triedEl.textContent = formatNumber(tried);
-    winnersEl.textContent = formatNumber(winners);
-    ratioEl.textContent = winners ? formatNumber(Math.round(tried / winners)) : "-";
-    render(tickets, shown.slice(-8));
-    lastEl.textContent = `${t("how.lottery.lastWinner")}: ${last ? `${last.slice(0, 26)}…` : t("how.lottery.none")}`;
+    foundEl.textContent = formatNumber(found);
+    ratioEl.textContent = found ? formatNumber(Math.round(tried / found)) : "-";
+    render(tries, shown.slice(-8));
+    lastEl.textContent = `${t("how.search.lastSolution")}: ${last ? `${last.slice(0, 26)}…` : t("how.search.none")}`;
   };
   const reset = () => {
-    tried = winners = 0;
+    tried = found = 0;
     last = null;
-    triedEl.textContent = winnersEl.textContent = "0";
+    triedEl.textContent = foundEl.textContent = "0";
     ratioEl.textContent = "-";
-    render(tickets);
-    lastEl.textContent = `${t("how.lottery.lastWinner")}: ${t("how.lottery.none")}`;
+    render(tries);
+    lastEl.textContent = `${t("how.search.lastSolution")}: ${t("how.search.none")}`;
   };
   return h(
     "div",
     { class: "card demo" },
-    h("h3", {}, t("how.lottery.demoTitle")),
-    h("p", { class: "muted" }, t("how.lottery.demoText")),
+    h("h3", {}, t("how.search.demoTitle")),
+    h("p", { class: "muted" }, t("how.search.demoText")),
     h("div", { class: "row" },
-      h("button", { type: "button", onclick: print }, t("how.lottery.print", { n: formatNumber(BATCH) })),
-      h("button", { type: "button", class: "secondary", onclick: reset }, t("how.lottery.reset"))),
+      h("button", { type: "button", onclick: search }, t("how.search.try", { n: formatNumber(BATCH) })),
+      h("button", { type: "button", class: "secondary", onclick: reset }, t("how.search.reset"))),
     h("div", { class: "stats", style: "margin-top:16px" },
-      h("div", { class: "stat" }, triedEl, h("div", { class: "label" }, t("how.lottery.tried"))),
-      h("div", { class: "stat" }, winnersEl, h("div", { class: "label" }, t("how.lottery.winners"))),
-      h("div", { class: "stat" }, ratioEl, h("div", { class: "label" }, t("how.lottery.average")))),
-    tickets,
+      h("div", { class: "stat" }, triedEl, h("div", { class: "label" }, t("how.search.tried"))),
+      h("div", { class: "stat" }, foundEl, h("div", { class: "label" }, t("how.search.solutions"))),
+      h("div", { class: "stat" }, ratioEl, h("div", { class: "label" }, t("how.search.average")))),
+    tries,
     lastEl,
-    h("p", { class: "muted" }, t("how.lottery.scale")),
+    h("p", { class: "muted" }, t("how.search.scale")),
   );
 }
 
@@ -239,7 +239,7 @@ render(
 
   section(t("how.idea.title"), h("div", { class: "card" }, h("ol", { class: "idea" }, [1, 2, 3, 4].map((i) => h("li", {}, t(`how.idea.${i}`)))))),
 
-  section(t("how.lottery.title"), p("how.lottery.p1"), p("how.lottery.p2"), lotteryDemo()),
+  section(t("how.search.title"), p("how.search.p1"), p("how.search.p2"), searchDemo()),
 
   section(t("how.steal.title"), p("how.steal.p1"), p("how.steal.p2")),
 

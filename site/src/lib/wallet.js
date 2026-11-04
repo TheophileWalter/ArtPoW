@@ -1,8 +1,6 @@
-// Wallet connection and transactions. With a WalletConnect (Reown) project id, the AppKit modal offers mobile
-// wallets (QR code) and browser wallets; without one, the site falls back to the browser wallet only.
-import { createAppKit } from "@reown/appkit";
-import { foundry, polygon, polygonAmoy } from "@reown/appkit/networks";
-import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+// Wallet connection and transactions. With a WalletConnect (Reown) project id and the visitor's consent, the AppKit
+// modal offers mobile wallets (QR code), email accounts and browser wallets. Otherwise the site loads none of that code
+// and falls back to the browser wallet only.
 import {
   connect as wagmiConnect,
   createConfig,
@@ -11,6 +9,7 @@ import {
   getConnection,
   http,
   injected,
+  reconnect,
   simulateContract,
   switchChain,
   waitForTransactionReceipt,
@@ -18,17 +17,25 @@ import {
   writeContract,
 } from "@wagmi/core";
 import { encodeFunctionData } from "viem";
+import { askConsent, consentChoice, hasConsent, takeOpenWallet } from "./consent.js";
 import { abi } from "./contract.js";
 import { t } from "./i18n.js";
 import { chain, chainId, contractAddress, rpcUrl, walletConnectProjectId } from "./config.js";
 
-const NETWORKS = { 137: polygon, 80002: polygonAmoy, 31337: foundry };
-const network = NETWORKS[chainId];
-
 let config;
 let modal = null;
 
-if (walletConnectProjectId) {
+if (walletConnectProjectId && hasConsent()) {
+  const [{ createAppKit }, { foundry, polygon, polygonAmoy }, { WagmiAdapter }, { OptionsController }] = await Promise.all([
+    import("@reown/appkit"),
+    import("@reown/appkit/networks"),
+    import("@reown/appkit-adapter-wagmi"),
+    import("@reown/appkit-controllers"),
+  ]);
+  // Their SDKs send usage data to Coinbase as soon as they start. AppKit 1.8.24 has no working option for Base Account:
+  // createAppKit never passes enableBaseAccount on, so it is set directly.
+  OptionsController.setEnableBaseAccount(false);
+  const network = { 137: polygon, 80002: polygonAmoy, 31337: foundry }[chainId];
   const adapter = new WagmiAdapter({
     networks: [network],
     projectId: walletConnectProjectId,
@@ -48,23 +55,29 @@ if (walletConnectProjectId) {
     },
     // Email accounts give beginners an address; a plain one, because the relay refuses contract recipients.
     defaultAccountTypes: { eip155: "eoa" },
+    enableCoinbase: false,
     features: { analytics: false, email: true, socials: false, swaps: false, onramp: false },
   });
 } else {
   config = createConfig({ chains: [chain], connectors: [injected()], transports: { [chainId]: http(rpcUrl) } });
+  reconnect(config);
 }
+
+if (modal && takeOpenWallet()) modal.open();
 
 export const account = () => getConnection(config);
 export const onAccountChange = (callback) => watchConnection(config, { onChange: callback });
 
+/** Whether mobile wallets and email accounts can be offered: the project id exists, whatever the visitor's consent. */
+export const walletServicesExist = () => Boolean(walletConnectProjectId);
+
 export async function connect() {
   if (modal) return modal.open();
-  if (!window.ethereum) throw new Error(t("wallet.noBrowserWallet"));
+  // Nothing is loaded or asked before this point: the question only matters to someone connecting a wallet.
+  if (walletConnectProjectId && consentChoice() === null) return askConsent();
+  if (!window.ethereum) throw new Error(t(walletConnectProjectId ? "wallet.needConsent" : "wallet.noBrowserWallet"));
   return wagmiConnect(config, { connector: injected(), chainId });
 }
-
-/** Whether accounts by email are offered: they come with the AppKit modal. */
-export const emailAccounts = () => Boolean(modal);
 
 /** Whether the connected wallet is an email account, whose only interface is that window. */
 export const isEmailAccount = () => account().connector?.type === "AUTH";

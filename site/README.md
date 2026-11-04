@@ -11,6 +11,8 @@ administration page. No server: the build is a folder of HTML, CSS and JavaScrip
 | `mine.html` | Guides beginners with a few questions, mines a proof in the browser (WebAssembly, several Web Workers), then claims the token from the wallet or through the relay. Without an address, an email account creates one through Reown |
 | `gallery.html` | Every edition, a token viewer (`/gallery#token=12`) and the tokens of the connected wallet |
 | `stats.html` | Statistics read live from the contract and its events: totals, averages, difficulty record, rarest hash, holders, tokens per month, rarity distribution, and for each month the tokens minted against the schedule and the difficulty over time (claim times from the `Claimed` events, closed months cached in the browser) |
+| `legal.html`, `privacy.html`, `contact.html` | Legal notice, privacy policy and contact, linked from the footer. The contact address is `VITE_CONTACT_EMAIL` |
+| `artists.html` | The offer to artists as it stands, the No AI charter, the licence and the call for applications |
 | `whitepaper.html` | The whitepaper as HTML (text, MathML formulas, SVG figures), generated from the LaTeX source, and the PDF to download |
 | `admin.html` | Every administrator function, sent from the wallet or exported as calldata for a multisig. Not linked from the other pages and marked `noindex`: open it by its address |
 | `deploy.html` | Deploys the contract from the connected wallet (e.g. a Tangem card through WalletConnect). Not linked, `noindex`, dev only (see below) |
@@ -64,6 +66,11 @@ server has to resolve them (see below), which a plain IPFS gateway does not do.
 `deploy.html` and `ens.html` are one-off tools: `npm run dev` serves them, but `npm run build` leaves them out of
 `dist/`. To publish them for a while (e.g. to use them from a phone wallet on the real domain), build with
 `RESTRICTED_PAGES=1 npm run build`, then rebuild without it and upload again.
+
+Wallet services (Reown, WalletConnect) are loaded only after the visitor's consent, kept six months (`src/lib/consent.js`).
+Browser wallets and the relay work without it. Coinbase and Base Account are disabled: their SDKs send usage data on start.
+`public/robots.txt`, `public/.well-known/tdmrep.json` and a `tdm-reservation` meta tag reserve rights against text and data
+mining. `.well-known` is a hidden folder: make sure the FTP client uploads it.
 
 `public/.htaccess` (copied into `dist/`, a hidden file: make sure the FTP client uploads it) configures Apache:
 - HTTPS only: plain HTTP is redirected (301), and browsers are told to use HTTPS directly for a year (HSTS). The rule

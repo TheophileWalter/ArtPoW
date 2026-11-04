@@ -212,7 +212,7 @@ function scheduleSection() {
     label: h("input", { value: monthLabel(defaultStart), placeholder: "November 2026" }),
     artist: h("input", { placeholder: "Artist name" }),
     artistAddress: h("input", { value: "0x0000000000000000000000000000000000000000", spellcheck: "false" }),
-    image: h("input", { placeholder: "ipfs://… (square artwork)", spellcheck: "false" }),
+    image: h("input", { placeholder: "ipfs://… (artwork)", spellcheck: "false" }),
     animationUrl: h("input", { placeholder: "optional: ipfs://… video, 3D or HTML", spellcheck: "false" }),
   };
   const preview = h("div", {});

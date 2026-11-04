@@ -25,6 +25,8 @@ export const explorer = chain.blockExplorers?.default?.url ?? "";
 /** ArtPoW relay, which sends claims and pays their gas. Without one, the mining page only offers the wallet. */
 const DEFAULT_RELAY = { 137: "https://fjm7k26s3i.execute-api.eu-west-3.amazonaws.com" };
 export const relayUrl = read("VITE_RELAY_URL") || DEFAULT_RELAY[chainId] || "";
+/** Public contact address. */
+export const contactEmail = read("VITE_CONTACT_EMAIL", "contact@artpow.org");
 /** Public repository of the project, linked from the footer. */
 export const sourceUrl = read("VITE_SOURCE_URL", "https://github.com/TheophileWalter/ArtPoW");
 

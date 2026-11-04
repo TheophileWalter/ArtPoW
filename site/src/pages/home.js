@@ -115,6 +115,10 @@ async function load() {
     h("h2", {}, t("home.readTitle")),
     h("p", { class: "muted" }, t("home.readText")),
     h("a", { class: "button secondary", href: "whitepaper" }, t("home.readCta")),
+    h("div", { class: "kicker" }, t("home.artistsKicker")),
+    h("h2", {}, t("home.artistsTitle")),
+    h("p", { class: "muted" }, t("home.artistsText")),
+    h("a", { class: "button secondary", href: "artists" }, t("home.artistsCta")),
   );
 }
 
