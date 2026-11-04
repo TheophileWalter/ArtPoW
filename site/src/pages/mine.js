@@ -9,7 +9,7 @@ import { Miner } from "../lib/miner.js";
 import { submitClaim, waitForClaim } from "../lib/relay.js";
 import { createCountdown, errorMessage, errorName, formatDate, formatDuration, formatHashes, resolveUri, shortAddress, txUrl } from "../lib/util.js";
 import { hasConsent, setConsent } from "../lib/consent.js";
-import { account, connect, onAccountChange, openAccount, walletServicesExist, write } from "../lib/wallet.js";
+import { account, connect, isEmailAccount, onAccountChange, openAccount, walletServicesExist, write } from "../lib/wallet.js";
 
 initLayout("mine");
 const app = document.getElementById("app");
@@ -169,7 +169,7 @@ function renderGuide() {
   return render(guideBox, h("div", { class: "row guide-summary" },
     h("span", { class: "muted" }, state.route === "wallet" ? t("mine.guide.routeWallet") : state.route === "relay" ? t("mine.guide.routeRelay") : t("mine.guide.routeAccount", { address: shortAddress(address) })),
     state.route === "account" ? h("button", { type: "button", class: "secondary small", onclick: openAccount }, t("mine.guide.manage")) : null,
-    change,
+    isEmailAccount() ? null : change,
   ));
 }
 
@@ -451,6 +451,8 @@ async function claim() {
 startButton.addEventListener("click", () => (state.miner?.running ? stopMining() : startMining()));
 recipientInput.addEventListener("change", checkRecipient);
 onAccountChange((a) => {
+  // An email account has no POL to send a transaction with: the relay is its only path, so nothing needs asking.
+  if (isEmailAccount() && state.route !== "account") return setRoute("account");
   if (!state.route) renderGuide();
   if (state.proof && state.route === "wallet" && claimButton) claimButton.textContent = a.address ? t("mine.claim") : t("mine.connectClaim");
   if (state.route === "account") {
@@ -501,7 +503,8 @@ render(
   resultBox,
   monthBox,
 );
-renderGuide();
+if (isEmailAccount()) setRoute("account");
+else renderGuide();
 
 (async () => {
   try {
