@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
+import { socialTags } from "./scripts/social.mjs";
 
 const page = (name) => fileURLToPath(new URL(`./${name}.html`, import.meta.url));
 
@@ -9,6 +10,7 @@ const restricted = process.env.RESTRICTED_PAGES === "1" ? { deploy: page("deploy
 
 export default defineConfig({
   base: "./", // relative paths: the build can be hosted anywhere, IPFS included
+  plugins: [socialTags()],
   resolve: { alias: { "@miner": fileURLToPath(new URL("../miner/src", import.meta.url)) } },
   server: { fs: { allow: [".."] } },
   worker: { format: "es" },
