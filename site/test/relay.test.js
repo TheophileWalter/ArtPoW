@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { RelayError, submitClaim, waitForClaim } from "../src/lib/relay.js";
+import { RelayError, submitClaim, submitProofRequest, waitForClaim } from "../src/lib/relay.js";
 
 const answer = (status, body) => ({ ok: status < 400, status, json: async () => body });
 const wait = async () => {};
@@ -16,6 +16,18 @@ test("a proof is posted with its nonce as a string", async () => {
   assert.equal(request.id, "1-0xabc");
   assert.equal(sent.url, "https://relay/relay");
   assert.deepEqual(sent.body, { month: 2, recipient: "0xabc", nonce: (2n ** 200n).toString() });
+});
+
+test("a proof request names only the month and the edition", async () => {
+  let sent;
+  const fetchFn = async (url, options) => {
+    sent = { url, body: JSON.parse(options.body) };
+    return answer(202, { id: "2-proof-team", status: "queued" });
+  };
+  const request = await submitProofRequest("https://relay", { month: 2n, edition: "team" }, fetchFn);
+  assert.equal(request.id, "2-proof-team");
+  assert.equal(sent.url, "https://relay/relay");
+  assert.deepEqual(sent.body, { month: 2, edition: "team" });
 });
 
 test("refusals and outages become relay errors", async () => {

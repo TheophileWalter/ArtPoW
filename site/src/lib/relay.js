@@ -29,6 +29,14 @@ export const submitClaim = (baseUrl, { month, recipient, nonce }, fetchFn = fetc
     body: JSON.stringify({ month: Number(month), recipient, nonce: nonce.toString() }),
   }, fetchFn);
 
+/** Asks for a month's artist or team proof (edition: "artist" or "team"). Only the contract chooses its recipient. */
+export const submitProofRequest = (baseUrl, { month, edition }, fetchFn = fetch) =>
+  call(`${baseUrl}/relay`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ month: Number(month), edition }),
+  }, fetchFn);
+
 /** Resolves to the transaction hash once mined. A failed poll is not an outcome: the request lives on in the relay. */
 export async function waitForClaim(baseUrl, id, { onSent, fetchFn = fetch, pollMs = 3000, timeoutMs = 300_000, wait = sleep } = {}) {
   let announced;

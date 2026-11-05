@@ -1,7 +1,7 @@
 // Administration page: every administrator function of the contract, as a form. Each action can be sent from
 // the connected wallet, or exported as calldata for a multisig (e.g. Safe transaction builder).
 import { getAddress, isAddress, parseEther } from "viem";
-import { chain, contractAddress } from "../lib/config.js";
+import { chain, contractAddress, relayUrl } from "../lib/config.js";
 import { ADMIN_ROLE, Edition, chainNow, getAdmins, getAllMonths, getOverview, read } from "../lib/contract.js";
 import { h, initLayout, notify, render } from "../lib/layout.js";
 import {
@@ -16,6 +16,7 @@ import {
   shortAddress,
   validateSchedule,
 } from "../lib/util.js";
+import { submitProofRequest, waitForClaim } from "../lib/relay.js";
 import { account, calldata, onAccountChange, write } from "../lib/wallet.js";
 
 initLayout("admin");
@@ -128,6 +129,28 @@ function actionButtons({ fn, args, label = "Send transaction", danger = false, c
   );
 }
 
+/** Mints a proof through the relay, which pays the gas: no wallet needed. Shown only on a site with a relay. */
+function relayProofButton(month, edition, label) {
+  if (!relayUrl) return null;
+  const out = h("div", {});
+  const button = h("button", { type: "button", class: "secondary" }, label);
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      render(out, h("p", { class: "muted" }, "Sent to the relay, waiting for the transaction…"));
+      const { id } = await submitProofRequest(relayUrl, { month, edition });
+      await waitForClaim(relayUrl, id);
+      notify("Proof minted through the relay.", "success");
+      load();
+    } catch (err) {
+      if (err.code === "already_claimed") return load();
+      button.disabled = false;
+      render(out, h("ul", { class: "problems" }, h("li", {}, `Relay: ${err.code ?? errorMessage(err)}`)));
+    }
+  });
+  return h("div", { class: "actions" }, button, out);
+}
+
 const section = (title, open, ...body) => h("details", { class: "card", open: open ? true : null, style: "margin-top:12px" }, h("summary", {}, title), h("div", { class: "body" }, body));
 
 // --- Sections ----------------------------------------------------------------------------------------------
@@ -175,8 +198,8 @@ function monthsSection(scheduleForm) {
     const actions = [];
     if (m.status === "upcoming") actions.push(h("button", { type: "button", class: "secondary", onclick: () => scheduleForm.edit(m) }, "Edit"));
     if (m.status === "active") {
-      if (!proofs[0] && !/^0x0{40}$/i.test(m.content.artistAddress)) actions.push(actionButtons({ fn: "claimReserved", args: () => [BigInt(m.month), Edition.ArtistProof], label: "Mint artist proof", adminOnly: false }));
-      if (!proofs[1] && !/^0x0{40}$/i.test(data.overview.teamRecipient)) actions.push(actionButtons({ fn: "claimReserved", args: () => [BigInt(m.month), Edition.TeamProof], label: "Mint team proof", adminOnly: false }));
+      if (!proofs[0] && !/^0x0{40}$/i.test(m.content.artistAddress)) actions.push(relayProofButton(m.month, "artist", "Mint artist proof for free (relay)"), actionButtons({ fn: "claimReserved", args: () => [BigInt(m.month), Edition.ArtistProof], label: "Mint artist proof", adminOnly: false }));
+      if (!proofs[1] && !/^0x0{40}$/i.test(data.overview.teamRecipient)) actions.push(relayProofButton(m.month, "team", "Mint team proof for free (relay)"), actionButtons({ fn: "claimReserved", args: () => [BigInt(m.month), Edition.TeamProof], label: "Mint team proof", adminOnly: false }));
     }
     if (m.status === "closed") actions.push(actionButtons({ fn: "announceMonthTotal", args: () => [BigInt(m.month)], label: "Announce total", adminOnly: false }));
     return h(
