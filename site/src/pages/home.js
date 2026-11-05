@@ -94,6 +94,7 @@ async function load() {
         h("div", { class: "chips" }, h("span", { class: "badge" }, h("span", { class: "dot" }), t("home.chip.free")), h("span", { class: "badge" }, t("home.chip.pow")), h("span", { class: "badge" }, t("home.chip.royalties")), h("span", { class: "badge" }, t("home.chip.open"))),
         h("h1", {}, t("home.title1"), h("br"), h("span", { class: "gradient-text" }, t("home.title2"))),
         h("p", { class: "lead" }, t("home.lead")),
+        h("div", { class: "row audience" }, h("a", { class: "button", href: "mine" }, t("home.collector")), h("a", { class: "button", href: "artists" }, t("home.artist"))),
         statusBlock,
       ),
       current ? artwork(current) : terminal(),

@@ -149,8 +149,8 @@ function renderGuide() {
     return render(guideBox, card(
       h("h3", {}, t("mine.guide.pol")),
       h("div", { class: "choices" },
-        choice(t("mine.guide.ownGas"), t("mine.guide.ownGasText"), () => setRoute("wallet")),
-        choice(t("mine.guide.relayGas"), t("mine.guide.relayGasText"), () => setRoute("relay"))),
+        choice(t("mine.guide.relayGas"), t("mine.guide.relayGasText"), () => setRoute("relay")),
+        choice(t("mine.guide.ownGas"), t("mine.guide.ownGasText"), () => setRoute("wallet"))),
       walletServicesExist() && !address ? h("div", { class: "row", style: "margin-top:12px" }, change) : null,
     ));
   }
