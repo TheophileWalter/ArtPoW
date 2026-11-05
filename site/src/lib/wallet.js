@@ -63,7 +63,14 @@ if (walletConnectProjectId && hasConsent()) {
   reconnect(config);
 }
 
-if (modal && takeOpenWallet()) modal.open();
+// AppKit loads the screens of a feature once, on first opening or at the end of its start. Opened before it has its
+// remote configuration, it never loads the email screens: the code entry then stays empty.
+const openModal = async (options) => {
+  await modal.ready().catch(() => {}); // a failed start still leaves wallets to connect with
+  return modal.open(options);
+};
+
+if (modal && takeOpenWallet()) openModal();
 
 export const account = () => getConnection(config);
 export const onAccountChange = (callback) => watchConnection(config, { onChange: callback });
@@ -72,7 +79,7 @@ export const onAccountChange = (callback) => watchConnection(config, { onChange:
 export const walletServicesExist = () => Boolean(walletConnectProjectId);
 
 export async function connect() {
-  if (modal) return modal.open();
+  if (modal) return openModal();
   // Nothing is loaded or asked before this point: the question only matters to someone connecting a wallet.
   if (walletConnectProjectId && consentChoice() === null) return askConsent();
   if (!window.ethereum) throw new Error(t(walletConnectProjectId ? "wallet.needConsent" : "wallet.noBrowserWallet"));
@@ -83,7 +90,7 @@ export async function connect() {
 export const isEmailAccount = () => account().connector?.type === "AUTH";
 
 /** The wallet's own window, where an email account can also export its key. */
-export const openAccount = () => modal?.open({ view: "Account" });
+export const openAccount = () => modal && openModal({ view: "Account" });
 
 export async function disconnect() {
   return wagmiDisconnect(config);
